@@ -1,0 +1,20 @@
+# CarSoul Guardian - AI Agent dependencies
+# (independent of backend; backend imports this package)
+
+# LLM client (optional; agent degrades to rule-based when absent)
+openai==1.35.0
+
+# Workflow orchestration (reserved for TASK008 multi-agent graph)
+# langgraph==0.1.5
+# langchain-core==0.2.10
+
+# Vector memory / knowledge base (TASK009 RAG)
+# Optional: chromadb enables persistent vector storage.
+# Without it, the system uses an in-memory store with hash-based embeddings.
+# chromadb==0.5.3
+
+# Utils
+loguru==0.7.2
+tenacity==8.3.0
+pydantic==2.7.4
+PyYAML==6.0.1

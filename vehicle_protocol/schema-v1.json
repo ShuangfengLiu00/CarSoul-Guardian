@@ -1,0 +1,825 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CarSoul OS Vehicle Schema",
+  "version": "1.0.0",
+  "description": "Public data standard for the CarSoul OS vehicle protocol layer.",
+  "$defs": {
+    "VehicleIdentity": {
+      "description": "Immutable identity of a single vehicle.\n\nThis is the root reference for every other model — all telemetry,\nlifecycle events, and memory entries are scoped to a VIN.",
+      "properties": {
+        "vin": {
+          "description": "Vehicle Identification Number (ISO 3779). 11-17 chars.",
+          "maxLength": 17,
+          "minLength": 11,
+          "title": "Vin",
+          "type": "string"
+        },
+        "brand": {
+          "description": "Manufacturer brand.",
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Brand",
+          "type": "string"
+        },
+        "model": {
+          "description": "Model name.",
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "year": {
+          "description": "Model year (e.g. 2025).",
+          "maximum": 2100,
+          "minimum": 1900,
+          "title": "Year",
+          "type": "integer"
+        },
+        "fuel_type": {
+          "description": "Primary energy type.",
+          "enum": [
+            "gasoline",
+            "diesel",
+            "hybrid",
+            "plug_in_hybrid",
+            "electric"
+          ],
+          "title": "Fuel Type",
+          "type": "string"
+        },
+        "battery_capacity": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Battery pack capacity in kWh. Required for EV/hybrid; None for pure ICE vehicles.",
+          "title": "Battery Capacity"
+        },
+        "engine_type": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Engine / motor designation.",
+          "title": "Engine Type"
+        },
+        "displacement": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Engine displacement in litres (L). ICE only.",
+          "title": "Displacement"
+        }
+      },
+      "required": [
+        "vin",
+        "brand",
+        "model",
+        "year",
+        "fuel_type"
+      ],
+      "title": "VehicleIdentity",
+      "type": "object"
+    },
+    "BatteryState": {
+      "description": "Battery health snapshot.\n\nEmitted by the simulator and consumed by the digital-twin\nBatteryTwin state machine.  ``soh`` (state-of-health) is the\nprimary longevity indicator: 100 % = new, < 80 % = degraded.",
+      "properties": {
+        "soh": {
+          "description": "State of Health (%). 100 = new battery.",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Soh",
+          "type": "number"
+        },
+        "temperature": {
+          "description": "Battery pack temperature (°C).",
+          "maximum": 120,
+          "minimum": -40,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "charge_cycles": {
+          "description": "Total charge cycles completed.",
+          "minimum": 0,
+          "title": "Charge Cycles",
+          "type": "integer"
+        },
+        "fast_charge_ratio": {
+          "description": "Fraction of charging sessions that were fast-charge (0.0 = all slow, 1.0 = all fast).",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Fast Charge Ratio",
+          "type": "number"
+        },
+        "soc": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "State of Charge (%) at the time of this reading.",
+          "title": "Soc"
+        },
+        "status": {
+          "default": "normal",
+          "description": "Derived component-health status.",
+          "enum": [
+            "normal",
+            "degrading",
+            "warning",
+            "critical"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "soh",
+        "temperature",
+        "charge_cycles",
+        "fast_charge_ratio"
+      ],
+      "title": "BatteryState",
+      "type": "object"
+    },
+    "MotorState": {
+      "description": "Motor / engine efficiency and wear snapshot.\n\nFor EVs this reflects the electric motor; for ICE vehicles it\nreflects the combustion engine.  ``wear`` is a 0-1 value where\n0 = pristine and 1 = end-of-life.",
+      "properties": {
+        "efficiency": {
+          "description": "Current efficiency ratio (0-1). 1.0 = design efficiency.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Efficiency",
+          "type": "number"
+        },
+        "wear": {
+          "description": "Wear level (0-1). 0 = pristine, 1 = end-of-life.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Wear",
+          "type": "number"
+        },
+        "temperature": {
+          "anyOf": [
+            {
+              "maximum": 200,
+              "minimum": -40,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Motor / engine temperature (°C).",
+          "title": "Temperature"
+        },
+        "status": {
+          "default": "normal",
+          "description": "Derived component-health status.",
+          "enum": [
+            "normal",
+            "degrading",
+            "warning",
+            "critical"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "efficiency",
+        "wear"
+      ],
+      "title": "MotorState",
+      "type": "object"
+    },
+    "ChassisState": {
+      "description": "Chassis component health snapshot.\n\nCovers braking, tyres, and suspension — the wear-intensive\nsubsystems that the chassis expert and safety agent analyse.",
+      "properties": {
+        "brake_wear": {
+          "description": "Brake-pad wear (0-1). 0 = new, 1 = replace immediately.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Brake Wear",
+          "type": "number"
+        },
+        "tire_wear": {
+          "description": "Tyre-tread wear (0-1). 0 = full tread, 1 = bald.",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Tire Wear",
+          "type": "number"
+        },
+        "suspension_health": {
+          "description": "Suspension health score (0-100). 100 = excellent.",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Suspension Health",
+          "type": "number"
+        },
+        "tire_pressure": {
+          "anyOf": [
+            {
+              "maximum": 5,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Average tyre pressure (bar).",
+          "title": "Tire Pressure"
+        },
+        "status": {
+          "default": "normal",
+          "description": "Derived component-health status.",
+          "enum": [
+            "normal",
+            "degrading",
+            "warning",
+            "critical"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "brake_wear",
+        "tire_wear",
+        "suspension_health"
+      ],
+      "title": "ChassisState",
+      "type": "object"
+    },
+    "DrivingProfile": {
+      "description": "Driving-behaviour summary for a period.\n\nAggregates a driver's style and behaviour scores.  Feeds the\ndriving-behaviour expert and the energy-optimisation expert.",
+      "properties": {
+        "style": {
+          "description": "Classified driving style.",
+          "enum": [
+            "eco",
+            "balanced",
+            "aggressive",
+            "sporty"
+          ],
+          "title": "Style",
+          "type": "string"
+        },
+        "safety_score": {
+          "description": "Safety score (0-100). 100 = safest.",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Safety Score",
+          "type": "number"
+        },
+        "eco_score": {
+          "description": "Eco / energy-efficiency score (0-100). 100 = most efficient.",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Eco Score",
+          "type": "number"
+        },
+        "harsh_event_count": {
+          "default": 0,
+          "description": "Total harsh events (hard accel / brake / sharp turn) in the aggregation period.",
+          "minimum": 0,
+          "title": "Harsh Event Count",
+          "type": "integer"
+        },
+        "avg_speed": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Average speed (km/h) in the period.",
+          "title": "Avg Speed"
+        }
+      },
+      "required": [
+        "style",
+        "safety_score",
+        "eco_score"
+      ],
+      "title": "DrivingProfile",
+      "type": "object"
+    },
+    "ImpactRef": {
+      "description": "Reference to a memory-engine impact entry.\n\nWhen a lifecycle event (e.g. a fault) has a quantified impact on a\nvehicle component, this links the event to the memory-engine record\nso that downstream agents can trace cause → effect.",
+      "properties": {
+        "target": {
+          "description": "Affected component or metric (e.g. 'battery_stress').",
+          "title": "Target",
+          "type": "string"
+        },
+        "delta": {
+          "description": "Signed impact magnitude (e.g. +0.3 stress, -5 health).",
+          "title": "Delta",
+          "type": "number"
+        },
+        "confidence": {
+          "default": 0.8,
+          "description": "Confidence in the impact assessment (0-1).",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "target",
+        "delta"
+      ],
+      "title": "ImpactRef",
+      "type": "object"
+    },
+    "LifecycleEvent": {
+      "$defs": {
+        "EventType": {
+          "description": "Vehicle lifecycle event types.",
+          "enum": [
+            "purchase",
+            "transfer",
+            "accident",
+            "repair",
+            "maintenance",
+            "inspection",
+            "insurance",
+            "registration",
+            "fault",
+            "custom"
+          ],
+          "title": "EventType",
+          "type": "string"
+        },
+        "ImpactRef": {
+          "description": "Reference to a memory-engine impact entry.\n\nWhen a lifecycle event (e.g. a fault) has a quantified impact on a\nvehicle component, this links the event to the memory-engine record\nso that downstream agents can trace cause → effect.",
+          "properties": {
+            "target": {
+              "description": "Affected component or metric (e.g. 'battery_stress').",
+              "title": "Target",
+              "type": "string"
+            },
+            "delta": {
+              "description": "Signed impact magnitude (e.g. +0.3 stress, -5 health).",
+              "title": "Delta",
+              "type": "number"
+            },
+            "confidence": {
+              "default": 0.8,
+              "description": "Confidence in the impact assessment (0-1).",
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Confidence",
+              "type": "number"
+            }
+          },
+          "required": [
+            "target",
+            "delta"
+          ],
+          "title": "ImpactRef",
+          "type": "object"
+        }
+      },
+      "description": "A single point on the vehicle's life timeline.\n\nLifecycle events are the raw log; the memory engine (Step 4) adds\nan interpretation layer on top via ``ImpactRef``.",
+      "properties": {
+        "event_type": {
+          "$ref": "#/$defs/EventType",
+          "description": "Event category."
+        },
+        "date": {
+          "description": "When the event occurred.",
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "mileage": {
+          "description": "Odometer reading at event time (km).",
+          "minimum": 0,
+          "title": "Mileage",
+          "type": "number"
+        },
+        "title": {
+          "description": "Human-readable event title.",
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Detailed event description.",
+          "title": "Description"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "enum": [
+                "info",
+                "minor",
+                "moderate",
+                "major",
+                "critical"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Severity (for accidents / faults).",
+          "title": "Severity"
+        },
+        "cost": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Associated cost (CNY).",
+          "title": "Cost"
+        },
+        "impact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImpactRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional link to a memory-engine impact entry."
+        }
+      },
+      "required": [
+        "event_type",
+        "date",
+        "mileage",
+        "title"
+      ],
+      "title": "LifecycleEvent",
+      "type": "object"
+    },
+    "TelemetryFrame": {
+      "$defs": {
+        "BatteryState": {
+          "description": "Battery health snapshot.\n\nEmitted by the simulator and consumed by the digital-twin\nBatteryTwin state machine.  ``soh`` (state-of-health) is the\nprimary longevity indicator: 100 % = new, < 80 % = degraded.",
+          "properties": {
+            "soh": {
+              "description": "State of Health (%). 100 = new battery.",
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Soh",
+              "type": "number"
+            },
+            "temperature": {
+              "description": "Battery pack temperature (°C).",
+              "maximum": 120,
+              "minimum": -40,
+              "title": "Temperature",
+              "type": "number"
+            },
+            "charge_cycles": {
+              "description": "Total charge cycles completed.",
+              "minimum": 0,
+              "title": "Charge Cycles",
+              "type": "integer"
+            },
+            "fast_charge_ratio": {
+              "description": "Fraction of charging sessions that were fast-charge (0.0 = all slow, 1.0 = all fast).",
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Fast Charge Ratio",
+              "type": "number"
+            },
+            "soc": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "State of Charge (%) at the time of this reading.",
+              "title": "Soc"
+            },
+            "status": {
+              "default": "normal",
+              "description": "Derived component-health status.",
+              "enum": [
+                "normal",
+                "degrading",
+                "warning",
+                "critical"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "soh",
+            "temperature",
+            "charge_cycles",
+            "fast_charge_ratio"
+          ],
+          "title": "BatteryState",
+          "type": "object"
+        },
+        "ChassisState": {
+          "description": "Chassis component health snapshot.\n\nCovers braking, tyres, and suspension — the wear-intensive\nsubsystems that the chassis expert and safety agent analyse.",
+          "properties": {
+            "brake_wear": {
+              "description": "Brake-pad wear (0-1). 0 = new, 1 = replace immediately.",
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Brake Wear",
+              "type": "number"
+            },
+            "tire_wear": {
+              "description": "Tyre-tread wear (0-1). 0 = full tread, 1 = bald.",
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Tire Wear",
+              "type": "number"
+            },
+            "suspension_health": {
+              "description": "Suspension health score (0-100). 100 = excellent.",
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Suspension Health",
+              "type": "number"
+            },
+            "tire_pressure": {
+              "anyOf": [
+                {
+                  "maximum": 5,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Average tyre pressure (bar).",
+              "title": "Tire Pressure"
+            },
+            "status": {
+              "default": "normal",
+              "description": "Derived component-health status.",
+              "enum": [
+                "normal",
+                "degrading",
+                "warning",
+                "critical"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "brake_wear",
+            "tire_wear",
+            "suspension_health"
+          ],
+          "title": "ChassisState",
+          "type": "object"
+        },
+        "DrivingProfile": {
+          "description": "Driving-behaviour summary for a period.\n\nAggregates a driver's style and behaviour scores.  Feeds the\ndriving-behaviour expert and the energy-optimisation expert.",
+          "properties": {
+            "style": {
+              "description": "Classified driving style.",
+              "enum": [
+                "eco",
+                "balanced",
+                "aggressive",
+                "sporty"
+              ],
+              "title": "Style",
+              "type": "string"
+            },
+            "safety_score": {
+              "description": "Safety score (0-100). 100 = safest.",
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Safety Score",
+              "type": "number"
+            },
+            "eco_score": {
+              "description": "Eco / energy-efficiency score (0-100). 100 = most efficient.",
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Eco Score",
+              "type": "number"
+            },
+            "harsh_event_count": {
+              "default": 0,
+              "description": "Total harsh events (hard accel / brake / sharp turn) in the aggregation period.",
+              "minimum": 0,
+              "title": "Harsh Event Count",
+              "type": "integer"
+            },
+            "avg_speed": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Average speed (km/h) in the period.",
+              "title": "Avg Speed"
+            }
+          },
+          "required": [
+            "style",
+            "safety_score",
+            "eco_score"
+          ],
+          "title": "DrivingProfile",
+          "type": "object"
+        },
+        "MotorState": {
+          "description": "Motor / engine efficiency and wear snapshot.\n\nFor EVs this reflects the electric motor; for ICE vehicles it\nreflects the combustion engine.  ``wear`` is a 0-1 value where\n0 = pristine and 1 = end-of-life.",
+          "properties": {
+            "efficiency": {
+              "description": "Current efficiency ratio (0-1). 1.0 = design efficiency.",
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Efficiency",
+              "type": "number"
+            },
+            "wear": {
+              "description": "Wear level (0-1). 0 = pristine, 1 = end-of-life.",
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Wear",
+              "type": "number"
+            },
+            "temperature": {
+              "anyOf": [
+                {
+                  "maximum": 200,
+                  "minimum": -40,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Motor / engine temperature (°C).",
+              "title": "Temperature"
+            },
+            "status": {
+              "default": "normal",
+              "description": "Derived component-health status.",
+              "enum": [
+                "normal",
+                "degrading",
+                "warning",
+                "critical"
+              ],
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          "required": [
+            "efficiency",
+            "wear"
+          ],
+          "title": "MotorState",
+          "type": "object"
+        }
+      },
+      "description": "The atomic emission unit of the virtual-vehicle simulator.\n\nA TelemetryFrame is a complete point-in-time snapshot of a vehicle's\nsubsystem states, produced by the simulator's time-compression\nengine.  Each frame flows: Simulator → Digital Twin → Agent Runtime.\n\nThe ``vin`` links the frame back to a VehicleIdentity; the timestamp\nallows the memory engine and timeline demo to replay history.",
+      "properties": {
+        "ts": {
+          "description": "Frame timestamp (UTC). Marks when this snapshot was produced by the simulator.",
+          "format": "date-time",
+          "title": "Ts",
+          "type": "string"
+        },
+        "vin": {
+          "description": "Vehicle Identification Number this frame belongs to.",
+          "maxLength": 17,
+          "minLength": 11,
+          "title": "Vin",
+          "type": "string"
+        },
+        "battery": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BatteryState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Battery state (EV / hybrid only; None for pure ICE)."
+        },
+        "motor": {
+          "$ref": "#/$defs/MotorState",
+          "description": "Motor / engine state."
+        },
+        "chassis": {
+          "$ref": "#/$defs/ChassisState",
+          "description": "Chassis state."
+        },
+        "driving": {
+          "$ref": "#/$defs/DrivingProfile",
+          "description": "Driving profile for the period ending at this frame."
+        },
+        "mileage": {
+          "description": "Odometer reading at frame time (km).",
+          "minimum": 0,
+          "title": "Mileage",
+          "type": "number"
+        },
+        "ambient_temp": {
+          "anyOf": [
+            {
+              "maximum": 60,
+              "minimum": -50,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ambient (environment) temperature (°C).",
+          "title": "Ambient Temp"
+        }
+      },
+      "required": [
+        "ts",
+        "vin",
+        "motor",
+        "chassis",
+        "driving",
+        "mileage"
+      ],
+      "title": "TelemetryFrame",
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,135 @@
+# ===========================
+# CarSoul Guardian - .gitignore
+# ===========================
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- IDE ----------
+.idea/
+.vscode/
+*.swp
+*.swo
+*.code-workspace
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+pythonenv*/
+
+# Testing / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------- Node / Frontend ----------
+node_modules/
+frontend/dist/
+frontend/build/
+*.local
+.vite/
+.eslintcache
+
+# ---------- Environment & secrets ----------
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ---------- Database ----------
+*.sqlite3
+*.db
+pgdata/
+postgres_data/
+
+# ---------- Redis ----------
+redis_data/
+
+# ---------- Logs ----------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ---------- Build artifacts ----------
+*.tgz
+.parcel-cache/
+
+# ---------- AI / model caches ----------
+*.bin
+*.pt
+*.ckpt
+chroma_db/
+vector_db/
+
+# ---------- Tool working dirs ----------
+.workbuddy/
+.trae/
+.trae-html-share-packages/
+
+# ---------- HTML documentation/presentation folders ----------
+carsoul-demo-plan/
+carsoul-guardian-ppt/
+carsoul-guardian-ppt-v2/
+carsoul-guardian-ppt-v3/
+carsoul-guardian-prd/
+carsoul-guardian-strategy/
+carsoul-lifecycle-prd/
+carsoul-positioning/
+carsoul-prd/
+carsoul-tech-design/
+goai-agent-loop/
+goai-dasaijiedu/
+goai-milestone/
+goai-scoring-battlemap/
+
+# ---------- Temporary/test/scratch files ----------
+test.html
+test.ts
+test.txt
+test1.txt
+test2.txt
+test3.txt
+evolutionService.ts
+index.ts
+backend/3.10
+对，你这个*.txt

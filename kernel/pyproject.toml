@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "carsoul-runtime"
+version = "1.0.0"
+description = "CarSoul OS Runtime SDK — Agent runtime, skill protocol, memory engine, and governance"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "CarSoul Guardian Team" }]
+keywords = ["ai", "agent", "automotive", "ev", "diagnostics", "sdk"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "pydantic>=2.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/carsoul/carsoul-guardian"
+Documentation = "https://github.com/carsoul/carsoul-guardian/blob/main/docs/sdk-quickstart.md"
+
+[tool.setuptools]
+packages = ["kernel", "kernel.memory_engine", "kernel.runtime", "kernel.runtime.skills"]
+package-dir = { "" = ".." }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["..", "../vehicle_protocol", "../digital_twin", "../ai-agent"]

@@ -1,0 +1,72 @@
+# 电池系统维修案例 — Repair Cases for Battery System
+# 每条案例包含：id / symptom / system / root_cause / recommended_action / confidence
+
+- id: RC-BAT-001
+  symptom: 充电速度下降20% + 电池温度波动大
+  system: battery
+  root_cause: 电芯衰减早期 / 冷却效率下降
+  recommended_action: 降低快充比例 + 冷却系统检查
+  confidence: 0.85
+
+- id: RC-BAT-002
+  symptom: SOC 跳变（从60%突降到20%）
+  system: battery
+  root_cause: BMS 电芯均衡故障 / 单体电芯电压差异过大
+  recommended_action: BMS 诊断 + 电芯均衡修复
+  confidence: 0.8
+
+- id: RC-BAT-003
+  symptom: 电池温度持续超过45°C且无下降趋势
+  system: battery
+  root_cause: 冷却液泵故障 / 冷却液泄漏
+  recommended_action: 立即停车散热 + 检查冷却液泵与管路
+  confidence: 0.9
+
+- id: RC-BAT-004
+  symptom: 续航里程较新车下降超过30%
+  system: battery
+  root_cause: 电池容量严重衰减 / SOH 低于70%
+  recommended_action: 申请电池质保检测 + 评估更换电池包
+  confidence: 0.85
+
+- id: RC-BAT-005
+  symptom: 冬季续航骤降40%以上
+  system: battery
+  root_cause: 低温导致电池化学活性降低 + PTC暖风高耗电
+  recommended_action: 插枪预热电池 + 使用座椅加热代替暖风
+  confidence: 0.75
+
+- id: RC-BAT-006
+  symptom: 快充时电池温度骤升至55°C以上
+  system: battery
+  root_cause: 激烈驾驶后未散热即快充 / 冷却系统散热不足
+  recommended_action: 静置15-30分钟散热后再充电 + 冷却系统检修
+  confidence: 0.88
+
+- id: RC-BAT-007
+  symptom: 电池包底部磕碰后报警
+  system: battery
+  root_cause: 底盘碰撞导致电池包外壳变形 / 内部模组位移
+  recommended_action: 立即停车 + 专业拖车送检 + 电池包CT扫描
+  confidence: 0.95
+
+- id: RC-BAT-008
+  symptom: 长期停放后无法充电
+  system: battery
+  root_cause: 深度亏电导致BMS保护锁定 / 电芯过放损坏
+  recommended_action: 尝试慢充激活 + 若无效需更换损坏模组
+  confidence: 0.7
+
+- id: RC-BAT-009
+  symptom: 电池异味（甜味或刺鼻气味）
+  system: battery
+  root_cause: 电芯热失控前兆 / 电解液泄漏
+  recommended_action: 立即远离车辆 + 拨打119 + 切勿尝试扑救
+  confidence: 0.98
+
+- id: RC-BAT-010
+  symptom: 充电频繁跳枪 / 充电中断
+  system: battery
+  root_cause: 充电口接触不良 / BMS 充电保护触发 / 电芯单体异常
+  recommended_action: 检查充电口针脚 + BMS 故障码读取 + 电芯检测
+  confidence: 0.82

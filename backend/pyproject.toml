@@ -1,0 +1,29 @@
+# CarSoul Guardian backend - code style config
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs | \.git | \.venv | build | dist | __pycache__
+  )/
+'''
+
+[flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503", "E501"]
+exclude = [".git", "__pycache__", "build", "dist", ".venv"]
+per-file-ignores = [
+    "__init__.py:F401",
+    "paths.py:E402",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true

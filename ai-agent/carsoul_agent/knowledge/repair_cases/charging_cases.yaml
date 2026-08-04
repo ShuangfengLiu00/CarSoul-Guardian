@@ -1,0 +1,36 @@
+# 充电系统维修案例 — Repair Cases for Charging System
+
+- id: RC-CHG-001
+  symptom: 慢充正常但快充无法启动
+  system: charging
+  root_cause: 快充继电器故障 / 高压接触器粘连 / 快充协议不匹配
+  recommended_action: 快充继电器检测 + 接触器检查 + 充电协议兼容性确认
+  confidence: 0.8
+
+- id: RC-CHG-002
+  symptom: 充电功率远低于标称值
+  system: charging
+  root_cause: 电池温度过低限制 / 充电桩功率不足 / 充电策略保守
+  recommended_action: 电池预热 + 更换大功率充电桩 + BMS充电策略升级
+  confidence: 0.75
+
+- id: RC-CHG-003
+  symptom: 频繁快充后续航明显下降
+  system: charging
+  root_cause: 长期快充加速电芯老化 / 电池热应力累积
+  recommended_action: 增加慢充比例 + 电池健康度检测 + 调整充电习惯
+  confidence: 0.85
+
+- id: RC-CHG-004
+  symptom: 充电时车内异味
+  system: charging
+  root_cause: 充电口过热熔蚀 / 充电线束绝缘老化 / OBC内部元件烧毁
+  recommended_action: 立即停止充电 + 充电口检查 + 线束绝缘检测 + OBC检测
+  confidence: 0.92
+
+- id: RC-CHG-005
+  symptom: 预约充电不执行
+  system: charging
+  root_cause: 车机系统时间不同步 / 充电桩通信异常 / 车辆休眠模式冲突
+  recommended_action: 车机时间校准 + 充电桩通信检测 + 休眠策略调整
+  confidence: 0.7

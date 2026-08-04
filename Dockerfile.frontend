@@ -1,0 +1,29 @@
+# ====================================================
+# CarSoul Guardian - Frontend Dockerfile
+# ====================================================
+# ---------- Build stage ----------
+FROM node:20-alpine AS build
+WORKDIR /app
+
+ENV CI=true
+
+COPY frontend/package*.json ./frontend/
+WORKDIR /app/frontend
+RUN npm install
+
+COPY frontend ./frontend
+RUN npm run build
+
+# ---------- Serve stage ----------
+FROM node:20-alpine AS serve
+WORKDIR /app/frontend
+
+# Lightweight static + SPA fallback server
+RUN npm install -g vite
+
+COPY --from=build /app/frontend ./
+
+EXPOSE 5173
+
+# Preview the production build (serves dist/)
+CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "5173"]

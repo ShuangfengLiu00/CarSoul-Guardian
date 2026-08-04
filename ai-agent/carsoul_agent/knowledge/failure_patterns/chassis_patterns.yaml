@@ -1,0 +1,41 @@
+# 底盘系统故障模式 — Failure Patterns for Chassis System
+
+- id: FP-CHS-001
+  symptom: 刹车片磨损速率异常加快
+  system: chassis
+  root_cause: 激烈驾驶习惯 / 制动卡钳拖滞 / 刹车片材质不匹配
+  recommended_action: 驾驶习惯评估 + 卡钳复位检查 + 更换合规刹车片
+  confidence: 0.82
+  stage: 长期累积
+
+- id: FP-CHS-002
+  symptom: 轮胎胎压季节性波动大
+  system: chassis
+  root_cause: 温度变化导致胎压自然波动 / 慢漏气 / TPMS传感器漂移
+  recommended_action: 季节性胎压调整 + 慢漏检测 + TPMS校准
+  confidence: 0.7
+  stage: 环境诱发
+
+- id: FP-CHS-003
+  symptom: 减震器油封老化漏油
+  system: chassis
+  root_cause: 油封自然老化 / 频繁颠簸路况 / 减震器活塞杆磨损
+  recommended_action: 减震器更换 + 活塞杆检查 + 路况适应性评估
+  confidence: 0.8
+  stage: 中期
+
+- id: FP-CHS-004
+  symptom: 悬挂衬套提前老化开裂
+  system: chassis
+  root_cause: 高温干燥环境加速橡胶老化 / 频繁涉水 / 油液污染
+  recommended_action: 衬套更换 + 污染源排查 + 悬挂系统全面检查
+  confidence: 0.75
+  stage: 中期
+
+- id: FP-CHS-005
+  symptom: 制动液含水量超标
+  system: chassis
+  root_cause: 制动液吸湿特性 / 超期未更换 / 储液罐密封不良
+  recommended_action: 立即更换制动液 + 储液罐密封检查 + 定期更换提醒
+  confidence: 0.88
+  stage: 安全风险

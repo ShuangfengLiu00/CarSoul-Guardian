@@ -1,0 +1,41 @@
+# 热管理与充电系统故障模式 — Failure Patterns for Thermal & Charging
+
+- id: FP-THE-001
+  symptom: 液冷系统冷却效率逐年下降
+  system: thermal
+  root_cause: 冷却液老化导热系数降低 / 冷却管路结垢 / 水泵叶轮磨损
+  recommended_action: 冷却液更换 + 管路清洗 + 水泵性能检测
+  confidence: 0.82
+  stage: 长期累积
+
+- id: FP-THE-002
+  symptom: 冷却液泵间歇性停转
+  system: thermal
+  root_cause: 水泵电机碳刷磨损 / 控制模块过热保护 / 继电器触点烧蚀
+  recommended_action: 水泵更换 + 控制模块检测 + 继电器更换
+  confidence: 0.85
+  stage: 中期
+
+- id: FP-THE-003
+  symptom: 电池热管理策略过于保守
+  system: thermal
+  root_cause: 温度传感器精度下降 / BMS热管理算法参数偏保守 / 软件版本过旧
+  recommended_action: 温度传感器校准 + BMS固件升级 + 热管理参数优化
+  confidence: 0.75
+  stage: 校准问题
+
+- id: FP-THE-004
+  symptom: 空调制热/制冷效率下降
+  system: thermal
+  root_cause: 制冷剂缓慢泄漏 / 压缩机效率衰减 / 冷凝器翅片堵塞
+  recommended_action: 制冷剂检漏补充 + 压缩机效率测试 + 冷凝器清洗
+  confidence: 0.78
+  stage: 中期
+
+- id: FP-THE-005
+  symptom: 高温环境下整车热保护频繁触发
+  system: thermal
+  root_cause: 散热器面积不足 / 冷却风扇低速 / 多系统并发散热需求超设计余量
+  recommended_action: 散热器检查 + 风速测试 + 高温行驶策略调整
+  confidence: 0.8
+  stage: 环境诱发

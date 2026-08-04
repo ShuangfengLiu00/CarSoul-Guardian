@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "carsoul-agent"
+version = "0.6.0"
+description = "CarSoul Guardian AI Agent module — agent management, prompts, tools, memory, workflows."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "loguru>=0.7",
+    "tenacity>=8.2",
+    "pydantic>=2.5",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+llm = ["openai>=1.30"]
+vector = ["chromadb>=0.5"]
+graph = ["langgraph>=0.1"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["carsoul_agent*"]

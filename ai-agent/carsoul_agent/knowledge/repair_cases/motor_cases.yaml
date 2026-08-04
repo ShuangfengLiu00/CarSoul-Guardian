@@ -1,0 +1,36 @@
+# 电机/动力系统维修案例 — Repair Cases for Motor/Powertrain System
+
+- id: RC-MOT-001
+  symptom: 电机异响（高频啸叫）
+  system: motor
+  root_cause: 电机轴承磨损 / 定转子气隙不均
+  recommended_action: 电机轴承更换 + 气隙校准
+  confidence: 0.8
+
+- id: RC-MOT-002
+  symptom: 电机过热报警（温度>120°C）
+  system: motor
+  root_cause: 冷却液不足 / 电机散热器堵塞 / 长时间满负荷运行
+  recommended_action: 停车降温 + 检查冷却液位与散热器 + 限制功率输出
+  confidence: 0.85
+
+- id: RC-MOT-003
+  symptom: 加速无力 / 动力响应迟缓
+  system: motor
+  root_cause: 电机效率衰减 / 逆变器IGBT老化 / 软件限功率
+  recommended_action: 电机效率测试 + 逆变器诊断 + 固件升级
+  confidence: 0.75
+
+- id: RC-MOT-004
+  symptom: 电机振动明显增强
+  system: motor
+  root_cause: 电机悬置松旷 / 转子动平衡失效 / 传动轴万向节磨损
+  recommended_action: 检查电机悬置 + 转子动平衡校正 + 传动轴检查
+  confidence: 0.78
+
+- id: RC-MOT-005
+  symptom: 能耗突然增加15%以上
+  system: motor
+  root_cause: 电机效率下降 + 轮胎阻力增大 + 制动卡钳拖滞
+  recommended_action: 电机效率检测 + 胎压检查 + 制动卡钳复位
+  confidence: 0.72

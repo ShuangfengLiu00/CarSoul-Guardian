@@ -1,0 +1,41 @@
+# 电机/动力系统故障模式 — Failure Patterns for Motor/Powertrain
+
+- id: FP-MOT-001
+  symptom: 电机效率持续下降（年降幅>2%）
+  system: motor
+  root_cause: 永磁体高温退磁 / 绕组绝缘老化 / 轴承磨损增加机械损耗
+  recommended_action: 电机效率曲线测试 + 绕组绝缘检测 + 轴承状态评估
+  confidence: 0.82
+  stage: 长期累积
+
+- id: FP-MOT-002
+  symptom: 逆变器IGBT结温频繁报警
+  system: motor
+  root_cause: IGBT老化导通电阻增大 / 冷却不足 / 驱动信号异常
+  recommended_action: IGBT特性测试 + 冷却系统检查 + 驱动电路诊断
+  confidence: 0.85
+  stage: 中期
+
+- id: FP-MOT-003
+  symptom: 电机绕组短路报警
+  system: motor
+  root_cause: 绝缘层老化击穿 / 异物进入 / 长期过热运行
+  recommended_action: 绕组绝缘电阻测试 + 电机拆检 + 视情况重绕或更换
+  confidence: 0.9
+  stage: 严重
+
+- id: FP-MOT-004
+  symptom: 减速器齿轮磨损异响
+  system: motor
+  root_cause: 润滑油劣化 / 齿面疲劳剥落 / 轴承游隙增大
+  recommended_action: 齿轮油更换 + 齿面检查 + 轴承更换
+  confidence: 0.78
+  stage: 中期
+
+- id: FP-MOT-005
+  symptom: 电机扭矩输出不平稳
+  system: motor
+  root_cause: 转子位置传感器信号干扰 / 编码器老化 / 控制算法参数漂移
+  recommended_action: 传感器信号检测 + 编码器更换 + 控制参数重标定
+  confidence: 0.75
+  stage: 早期

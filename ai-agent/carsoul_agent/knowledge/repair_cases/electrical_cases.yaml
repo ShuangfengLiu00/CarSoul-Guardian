@@ -1,0 +1,36 @@
+# 电气系统维修案例 — Repair Cases for Electrical System
+
+- id: RC-ELE-001
+  symptom: 仪表盘多个故障灯同时亮起
+  system: electrical
+  root_cause: CAN总线通信故障 / 12V蓄电池亏电 / 主继电器接触不良
+  recommended_action: CAN总线诊断 + 12V电池检测 + 继电器检查
+  confidence: 0.82
+
+- id: RC-ELE-002
+  symptom: 充电指示灯闪烁但无法充电
+  system: electrical
+  root_cause: OBC车载充电机故障 / 充电口温度传感器异常 / CC/CP信号异常
+  recommended_action: OBC诊断 + 充电口传感器检测 + 充电信号回路检查
+  confidence: 0.8
+
+- id: RC-ELE-003
+  symptom: 车辆无故熄火 / 行驶中断电
+  system: electrical
+  root_cause: 12V蓄电池失效 / DC-DC转换器故障 / 主保险丝熔断
+  recommended_action: 12V电池更换 + DC-DC转换器检测 + 保险丝检查
+  confidence: 0.88
+
+- id: RC-ELE-004
+  symptom: 空调完全不制冷
+  system: electrical
+  root_cause: 电动压缩机故障 / 空调控制板损坏 / 制冷剂泄漏
+  recommended_action: 压缩机检测 + 控制板诊断 + 制冷剂压力检测
+  confidence: 0.78
+
+- id: RC-ELE-005
+  symptom: 雨刮器不工作 / 仅高速档可用
+  system: electrical
+  root_cause: 雨刮电机碳刷磨损 / 雨刮继电器故障 / 组合开关接触不良
+  recommended_action: 雨刮电机更换 + 继电器检测 + 开关触点清洁
+  confidence: 0.72

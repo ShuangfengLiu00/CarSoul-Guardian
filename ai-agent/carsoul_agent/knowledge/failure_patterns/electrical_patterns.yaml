@@ -1,0 +1,33 @@
+# 电气系统故障模式 — Failure Patterns for Electrical System
+
+- id: FP-ELE-001
+  symptom: 12V蓄电池寿命缩短（<2年）
+  system: electrical
+  root_cause: DC-DC充电策略不当 / 暗电流超标 / 频繁短途行驶充电不足
+  recommended_action: DC-DC输出检测 + 暗电流排查 + 更换高质量AGM电池
+  confidence: 0.82
+  stage: 长期累积
+
+- id: FP-ELE-002
+  symptom: CAN总线间歇性通信丢失
+  system: electrical
+  root_cause: 总线终端电阻异常 / 接插件氧化 / 电磁干扰
+  recommended_action: 总线波形分析 + 终端电阻测量 + 接插件清洁
+  confidence: 0.8
+  stage: 早期
+
+- id: FP-ELE-003
+  symptom: 传感器信号漂移导致误报警
+  system: electrical
+  root_cause: 传感器老化 / 线束接触不良 / 信号屏蔽干扰
+  recommended_action: 传感器标定 + 线束接触检查 + 屏蔽层完整性检测
+  confidence: 0.78
+  stage: 中期
+
+- id: FP-ELE-004
+  symptom: 车机系统卡顿/死机
+  system: electrical
+  root_cause: 系统内存不足 / 固件版本bug / 存储芯片老化
+  recommended_action: 系统重启 + 固件升级 + 存储健康检测
+  confidence: 0.72
+  stage: 早期

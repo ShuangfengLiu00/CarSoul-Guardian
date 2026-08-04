@@ -1,0 +1,82 @@
+# 电池系统故障模式 — Failure Patterns for Battery System
+# 每条模式描述：异常现象 → 根因 → 影响范围 → 演变阶段
+
+- id: FP-BAT-001
+  symptom: 电池SOH年衰减率超过2%
+  system: battery
+  root_cause: 长期满电存放 + 高温环境 + 频繁快充
+  recommended_action: 调整充电区间至20-80% + 避免高温暴晒 + 降低快充频次
+  confidence: 0.88
+  stage: 早期
+
+- id: FP-BAT-002
+  symptom: 电芯单体电压差异>100mV
+  system: battery
+  root_cause: 电芯一致性变差 / BMS均衡电流不足 / 个别电芯内部短路
+  recommended_action: BMS均衡修复 + 电芯电压监测 + 严重时更换模组
+  confidence: 0.85
+  stage: 中期
+
+- id: FP-BAT-003
+  symptom: 电池内阻增大导致峰值功率下降
+  system: battery
+  root_cause: 电芯老化内阻上升 / 连接片氧化 / 模组间接触电阻增大
+  recommended_action: 内阻测试 + 连接片检查 + 模组级诊断
+  confidence: 0.8
+  stage: 中期
+
+- id: FP-BAT-004
+  symptom: 低温充电功率严重受限
+  system: battery
+  root_cause: 低温下电芯析锂风险 / BMS低温保护策略 / 电池自加热功率不足
+  recommended_action: 预热电池后充电 + 升级BMS策略 + 避免极寒环境快充
+  confidence: 0.82
+  stage: 环境诱发
+
+- id: FP-BAT-005
+  symptom: 电池包绝缘电阻下降
+  system: battery
+  root_cause: 冷却液渗入电池包 / 线束绝缘老化 / 接插件进水
+  recommended_action: 绝缘检测 + 冷却系统密封性检查 + 线束更换
+  confidence: 0.9
+  stage: 安全风险
+
+- id: FP-BAT-006
+  symptom: 电池自放电速率异常加快
+  system: battery
+  root_cause: 个别电芯微短路 / BMS暗电流消耗 / 电池包密封不良受潮
+  recommended_action: 静置压降测试 + 暗电流检测 + 电池包密封检查
+  confidence: 0.78
+  stage: 早期
+
+- id: FP-BAT-007
+  symptom: 热失控连锁反应前兆（温升速率>2°C/min）
+  system: battery
+  root_cause: 单体电芯内短路 / 过充导致析锂刺穿隔膜 / 机械损伤
+  recommended_action: 立即断电隔离 + 专业消防 + 电池包整体更换
+  confidence: 0.98
+  stage: 紧急
+
+- id: FP-BAT-008
+  symptom: 电池循环寿命提前耗尽
+  system: battery
+  root_cause: 深度放电循环过多 + 高温大倍率充放电 + 充电区间过宽
+  recommended_action: 充电习惯优化 + 散热改善 + 容量衰减评估
+  confidence: 0.85
+  stage: 长期累积
+
+- id: FP-BAT-009
+  symptom: BMS数据与实际电量偏差大
+  system: battery
+  root_cause: BMS算法模型不准 / 电流传感器漂移 / 长期未满充校准
+  recommended_action: BMS固件升级 + 电流传感器校准 + 满充校准循环
+  confidence: 0.8
+  stage: 校准问题
+
+- id: FP-BAT-010
+  symptom: 快充时电芯温度差异>8°C
+  system: battery
+  root_cause: 冷却流道堵塞 / 部分电芯热失控早期 / 冷却液分配不均
+  recommended_action: 冷却流道检查 + 电芯温度监控 + 冷却液循环检测
+  confidence: 0.83
+  stage: 中期

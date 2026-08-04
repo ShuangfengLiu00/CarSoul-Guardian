@@ -1,0 +1,40 @@
+# CarSoul Guardian - Backend dependencies
+# Python 3.10+ (tested on 3.10 / 3.11 / 3.14)
+# Uses floor versions for broad interpreter compatibility.
+
+# Web framework
+fastapi>=0.111
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+
+# Settings / env
+pydantic>=2.9
+pydantic-settings>=2.5
+python-dotenv>=1.0
+
+# Database
+SQLAlchemy>=2.0.30
+# Modern PostgreSQL driver (psycopg3) — has wheels for Python 3.10..3.14.
+# Only required when DATABASE_URL points at PostgreSQL; SQLite dev works without it.
+psycopg[binary]>=3.2
+
+# Auth / security
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+email-validator>=2.0
+
+# AI Agent (optional deps for enhanced RAG; system degrades gracefully without them)
+# openai>=1.30        # LLM + embedding API (TASK008/009)
+# chromadb>=0.5       # persistent vector store (TASK009; in-memory fallback built-in)
+
+# Utils
+loguru>=0.7
+tenacity>=8.2
+# 主动巡检调度器（未安装时优雅降级为手动巡检 POST /api/risk/patrol）
+apscheduler>=3.10
+
+# Dev tooling
+black>=24.4
+flake8>=7.0
+pytest>=8.0
+httpx>=0.27

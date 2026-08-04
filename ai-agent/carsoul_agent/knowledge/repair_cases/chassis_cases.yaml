@@ -1,0 +1,57 @@
+# 底盘系统维修案例 — Repair Cases for Chassis System
+
+- id: RC-CHS-001
+  symptom: 刹车距离明显变长
+  system: chassis
+  root_cause: 刹车片磨损超限 / 刹车油含水量过高 / 制动盘表面不平
+  recommended_action: 更换刹车片 + 更换刹车油 + 制动盘光磨或更换
+  confidence: 0.9
+
+- id: RC-CHS-002
+  symptom: 高速方向盘抖动
+  system: chassis
+  root_cause: 轮胎动平衡失效 / 轮毂变形 / 悬挂球头松旷
+  recommended_action: 轮胎动平衡重做 + 轮毂检查 + 悬挂球头检测
+  confidence: 0.82
+
+- id: RC-CHS-003
+  symptom: 轮胎偏磨（内侧或外侧）
+  system: chassis
+  root_cause: 四轮定位失准 / 悬挂下摆臂变形
+  recommended_action: 四轮定位 + 悬挂部件检查 + 视情况更换变形件
+  confidence: 0.85
+
+- id: RC-CHS-004
+  symptom: 过减速带异响（金属撞击声）
+  system: chassis
+  root_cause: 减震器漏油失效 / 缓冲胶套老化 / 悬挂控制臂衬套破损
+  recommended_action: 减震器更换 + 衬套更换 + 悬挂全面检查
+  confidence: 0.8
+
+- id: RC-CHS-005
+  symptom: 胎压报警频繁触发
+  system: chassis
+  root_cause: 胎压传感器电池耗尽 / 轮胎慢漏气 / 胎压监测模块故障
+  recommended_action: 胎压传感器检测 + 轮胎浸水检漏 + TPMS模块诊断
+  confidence: 0.78
+
+- id: RC-CHS-006
+  symptom: 刹车踏板软 / 行程过长
+  system: chassis
+  root_cause: 刹车油含空气 / 刹车总泵内漏 / 制动管路泄漏
+  recommended_action: 刹车系统排气 + 总泵检测 + 管路检漏
+  confidence: 0.88
+
+- id: RC-CHS-007
+  symptom: 转向异响（转向时咯吱声）
+  system: chassis
+  root_cause: 转向机万向节磨损 / 转向拉杆球头缺油 / 转向助力油不足
+  recommended_action: 转向机万向节检查 + 球头润滑或更换 + 助力油补充
+  confidence: 0.75
+
+- id: RC-CHS-008
+  symptom: 轮胎胎侧鼓包
+  system: chassis
+  root_cause: 胎侧受过撞击或挤压 / 制造缺陷
+  recommended_action: 立即更换轮胎（鼓包不可修复）+ 检查轮毂是否变形
+  confidence: 0.95
