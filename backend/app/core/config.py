@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     AGENT_LANGUAGE: str = "zh-CN"
     AGENT_PROACTIVE: bool = True
 
+    # ---------- CarSoul World Model (carModel) bridge ----------
+    # Guardian 通过 HTTP 调用 carModel 车辆世界模型引擎，拿到真实的
+    # SOH / 故障 / 残值 / 反事实预测。引擎默认跑在 :8000（见 start.sh）。
+    CARSOUL_WORLD_API_URL: str = "http://localhost:8000"
+
     # ---------- Knowledge base ----------
     VECTOR_DB_PATH: str = "./ai-agent/memory/vector_store"
     CHROMA_COLLECTION: str = "carsoul_guardian"

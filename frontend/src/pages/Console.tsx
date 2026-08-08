@@ -9,7 +9,6 @@ import {
   SafetyCertificateOutlined,
   ControlOutlined,
   RocketOutlined,
-  ThunderboltOutlined,
   ExperimentOutlined,
   DashboardOutlined,
   ApiOutlined,
@@ -37,9 +36,8 @@ const coreEntries: Entry[] = [
   { key: "risk", title: "风险预测", desc: "故障 / 残值前瞻预警", icon: <AlertOutlined />, to: "/risk" },
   { key: "safety", title: "安全合规", desc: "守护边界与披露", icon: <SafetyCertificateOutlined />, to: "/safety" },
   { key: "governance", title: "治理控制台", desc: "Agent 权限与版本", icon: <ControlOutlined />, to: "/governance" },
-  { key: "universe", title: "全息宇宙 3D", desc: "数字孪生沉浸式视图", icon: <ThunderboltOutlined />, to: "/holo/universe" },
-  { key: "chat", title: "全息对话", desc: "沉浸式 Agent 对话", icon: <ExperimentOutlined />, to: "/holo/chat" },
-  { key: "evolution", title: "进化引擎", desc: "模型持续进化", icon: <RocketOutlined />, to: "/holo/evolution" },
+  { key: "memory", title: "记忆海洋", desc: "车辆记忆可视化", icon: <ExperimentOutlined />, to: "/memory" },
+  { key: "evolution", title: "进化引擎", desc: "模型持续进化", icon: <RocketOutlined />, to: "/evolution" },
 ];
 
 /** 车辆世界模型引擎 carModel（同源，独立页面打开） */

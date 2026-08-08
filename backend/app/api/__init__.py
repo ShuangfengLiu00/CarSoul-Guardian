@@ -2,6 +2,7 @@
 from fastapi import APIRouter
 
 from app.api.agent.router import router as agent_router
+from app.api.carsoul.router import router as carsoul_router
 from app.api.digital_twin.router import router as digital_twin_router
 from app.api.governance.router import router as governance_router
 from app.api.health.router import router as health_router
@@ -19,6 +20,7 @@ api_router.include_router(agent_router, prefix="/agent", tags=["agent"])
 api_router.include_router(knowledge_router, prefix="/knowledge", tags=["knowledge"])
 api_router.include_router(risk_router, tags=["risk"])
 api_router.include_router(health_router, prefix="/health", tags=["health"])
+api_router.include_router(carsoul_router, prefix="/carsoul", tags=["carsoul-world-model"])
 api_router.include_router(governance_router, prefix="/governance", tags=["governance"])
 api_router.include_router(timeline_router, prefix="/timeline", tags=["timeline"])
 

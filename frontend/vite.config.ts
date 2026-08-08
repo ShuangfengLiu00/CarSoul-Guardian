@@ -66,8 +66,20 @@ export default defineConfig({
         target: "http://localhost:8001",
         changeOrigin: true,
       },
+      // Guardian's own health (backend liveness) stays on :8001.
       "/health": {
         target: "http://localhost:8001",
+        changeOrigin: true,
+      },
+      // --- carModel (world model engine) surfaces, proxied straight to :8000 ---
+      // /docs  -> carModel's Swagger UI
+      // /cockpit -> carModel's 3D digital-twin view (the canonical "world model")
+      "/docs": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+      "/cockpit": {
+        target: "http://localhost:8000",
         changeOrigin: true,
       },
     },
