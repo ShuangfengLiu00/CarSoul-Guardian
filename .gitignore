@@ -93,6 +93,7 @@ yarn-error.log*
 # ---------- Build artifacts ----------
 *.tgz
 .parcel-cache/
+*.tsbuildinfo
 
 # ---------- AI / model caches ----------
 *.bin
