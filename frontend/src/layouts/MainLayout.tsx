@@ -14,6 +14,7 @@ import {
   ControlOutlined,
   RocketOutlined,
   FieldTimeOutlined,
+  AppstoreOutlined,
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -21,6 +22,7 @@ const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
 const menuItems = [
+  { key: "/portal", icon: <AppstoreOutlined />, label: "统一入口" },
   { key: "/", icon: <DashboardOutlined />, label: "Dashboard" },
   { key: "/agent", icon: <RobotOutlined />, label: "AI 守护" },
   { key: "/vehicle", icon: <CarOutlined />, label: "车辆档案" },

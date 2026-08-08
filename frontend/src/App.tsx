@@ -14,6 +14,7 @@ import {
   Governance,
   EvolutionEngine,
   TimelineDemo,
+  Console,
 } from "@/pages/index";
 import {
   UniverseEntry,
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="/simulator" element={<VehicleSimulator />} />
         <Route path="/governance" element={<Governance />} />
         <Route path="/timeline" element={<TimelineDemo />} />
+        <Route path="/portal" element={<Console />} />
       </Route>
 
       {/* ===== Holographic Cockpit routes ===== */}
