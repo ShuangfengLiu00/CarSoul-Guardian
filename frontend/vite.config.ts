@@ -4,9 +4,10 @@ import path from "path";
 import fs from "fs";
 
 /**
- * Vite 生产构建时，对形如 `@/components/hologram` 的目录级 import，
- * 如果该目录下存在 index.ts/index.tsx，则显式解析到 index 文件。
- * 开发服务器能自动处理，但 Rollup 生产构建偶发 EISDIR 报错，用此插件兜底。
+ * Vite 生产构建时兜底解析两类 import：
+ * 1. 目录级 import（如 `@/components/hologram`）→ 找目录下 index.ts/index.tsx
+ * 2. 无扩展名文件 import（如 `@/layouts/index`）→ 补 .ts/.tsx
+ * 开发服务器能自动处理，但 Rollup 生产构建偶发 ENOENT/EISDIR，用此插件兜底。
  */
 function directoryIndexResolver() {
   return {
@@ -15,18 +16,31 @@ function directoryIndexResolver() {
     async resolveId(source: string, importer: string | undefined) {
       if (!source.startsWith("@/")) return null;
       const resolved = path.resolve(__dirname, "./src", source.slice(2));
+      let isDirectory = false;
       try {
         const stat = await fs.promises.stat(resolved);
-        if (!stat.isDirectory()) return null;
+        isDirectory = stat.isDirectory();
+      } catch {
+        // 可能是无扩展名文件 import，继续走下方兜底
+      }
+
+      if (isDirectory) {
         for (const ext of ["index.ts", "index.tsx"]) {
           const candidate = path.join(resolved, ext);
           if (fs.existsSync(candidate)) {
             return candidate;
           }
         }
-      } catch {
-        // 不是目录或不存在，交给默认解析器
       }
+
+      // 兜底：无扩展名文件 import 补 .ts/.tsx
+      for (const ext of [".ts", ".tsx"]) {
+        const candidate = resolved + ext;
+        if (fs.existsSync(candidate)) {
+          return candidate;
+        }
+      }
+
       return null;
     },
   };
