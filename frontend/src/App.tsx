@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
-import { MainLayout } from "@/layouts";
+import { MainLayout } from "@/layouts/index";
 import {
   Dashboard,
   AgentChat,
@@ -14,7 +14,7 @@ import {
   Governance,
   EvolutionEngine,
   TimelineDemo,
-} from "@/pages";
+} from "@/pages/index";
 import {
   UniverseEntry,
   VehicleUniverse,
@@ -27,8 +27,8 @@ import {
   SafetyGuardian,
   VehicleTimeline,
   AgentChatHolo,
-} from "@/pages/hologram";
-import { HoloLayout } from "@/components/hologram";
+} from "@/pages/hologram/index";
+import { HoloLayout } from "@/components/hologram/index";
 
 /** Wrapper that provides HoloLayout with automatic activePath detection */
 function HoloLayoutWrapper() {
