@@ -57,7 +57,13 @@ services:
       ENVIRONMENT: production
       DATABASE_URL: postgresql://carsoul:carsoul@postgres:5432/carsoul_guardian
       REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      # `:?` 而不是 `:-`：这里原本给了默认值 change-me-in-production，
+      # 与 backend/app/core/config.py 的默认 JWT_SECRET 是同一个 P0 缺陷的两份拷贝 ——
+      # ENVIRONMENT=production 却用一个公开字符串签发 JWT，任何人都能伪造登录态。
+      # 现在缺失就让 compose 在解析阶段直接失败，报错信息比容器 crash-loop 清楚得多。
+      # 后端还有一道 fail-fast 闸门（config.py 的 _enforce_config_policy）做纵深防御。
+      # 生成密钥：python -c "import secrets; print(secrets.token_urlsafe(48))"
+      JWT_SECRET: ${JWT_SECRET:?必须设置 JWT_SECRET（写入 .env 或导出环境变量）—— 拒绝使用占位密钥启动生产容器}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       MODEL_NAME: ${MODEL_NAME:-gpt-4o-mini}
       # 经 nginx 反代后前端与 API 同源，理论上不需要 CORS；
