@@ -95,6 +95,11 @@ yarn-error.log*
 .parcel-cache/
 *.tsbuildinfo
 
+# Vite / TS build outputs accidentally force-tracked earlier (keep worktree clean)
+frontend/vite.config.js
+frontend/vite.config.d.ts
+frontend/tsconfig.node.tsbuildinfo
+
 # ---------- AI / model caches ----------
 *.bin
 *.pt
