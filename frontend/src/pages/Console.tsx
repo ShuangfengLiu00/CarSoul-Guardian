@@ -13,6 +13,7 @@ import {
   DashboardOutlined,
   ApiOutlined,
   GlobalOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
 
 const { Title, Text, Paragraph } = Typography;
@@ -33,6 +34,7 @@ const coreEntries: Entry[] = [
   { key: "agent", title: "AI 守护对话", desc: "多专家 Agent 闭环答疑", icon: <RobotOutlined />, to: "/agent" },
   { key: "life", title: "数字生命", desc: "车辆一生档案与记忆", icon: <HeartOutlined />, to: "/life" },
   { key: "vehicle", title: "车辆档案", desc: "单车全量数据透视", icon: <CarOutlined />, to: "/vehicle" },
+  { key: "knowledge", title: "知识库", desc: "汽车知识 RAG 检索问答", icon: <BookOutlined />, to: "/knowledge" },
   { key: "risk", title: "风险预测", desc: "故障 / 残值前瞻预警", icon: <AlertOutlined />, to: "/risk" },
   { key: "safety", title: "安全合规", desc: "守护边界与披露", icon: <SafetyCertificateOutlined />, to: "/safety" },
   { key: "governance", title: "治理控制台", desc: "Agent 权限与版本", icon: <ControlOutlined />, to: "/governance" },
@@ -42,7 +44,7 @@ const coreEntries: Entry[] = [
 
 /** 车辆世界模型引擎 carModel（同源，独立页面打开） */
 const engineEntries: Entry[] = [
-  { key: "health", title: "引擎健康", desc: "xgb-battery-v1.0 自检", icon: <ApiOutlined />, href: "/health", tag: "carModel" },
+  { key: "health", title: "引擎健康", desc: "xgb-battery-v1.0 自检", icon: <ApiOutlined />, href: "/carmodel/health", tag: "carModel" },
   { key: "docs", title: "API 文档", desc: "FastAPI Swagger 契约", icon: <ApiOutlined />, href: "/docs", tag: "carModel" },
   { key: "cockpit", title: "3D 数字孪生驾驶舱", desc: "实车状态可视化", icon: <GlobalOutlined />, href: "/cockpit/", tag: "carModel" },
 ];

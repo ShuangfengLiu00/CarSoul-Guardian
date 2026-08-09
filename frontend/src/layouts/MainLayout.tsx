@@ -15,6 +15,7 @@ import {
   RocketOutlined,
   FieldTimeOutlined,
   AppstoreOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -28,9 +29,10 @@ const menuItems = [
   { key: "/vehicle", icon: <CarOutlined />, label: "车辆档案" },
   { key: "/life", icon: <HeartOutlined />, label: "数字生命" },
   { key: "/soul", icon: <CrownOutlined />, label: "灵魂主页" },
+  { key: "/knowledge", icon: <BookOutlined />, label: "知识库" },
   { key: "/risk", icon: <AlertOutlined />, label: "风险预测" },
   { key: "/safety", icon: <SafetyCertificateOutlined />, label: "安全合规" },
-  { key: "/simulator", icon: <ToolOutlined />, label: "仿真检修" },
+  { key: "/simulator", icon: <ToolOutlined />, label: "演示推演" },
   { key: "/story", icon: <PlayCircleOutlined />, label: "故事模式" },
   { key: "/governance", icon: <ControlOutlined />, label: "治理控制台" },
   { key: "/timeline", icon: <FieldTimeOutlined />, label: "一辆车的一生" },
