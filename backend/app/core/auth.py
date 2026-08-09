@@ -51,7 +51,13 @@ def _is_public(path: str) -> bool:
     """Whether a request path bypasses the auth middleware."""
     if path in PUBLIC_PATHS:
         return True
-    return any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES)
+    # 边界感知的前缀匹配：仅当 path 恰好等于前缀，或以 `前缀/` 开头时才豁免。
+    # 不能用裸 startswith —— 否则 `/staticX`、`/assetsfoo` 乃至未来的
+    # `/staticdata/export` 端点会被错误地当成静态资源而静默绕过鉴权。
+    return any(
+        path == prefix or path.startswith(prefix + "/")
+        for prefix in PUBLIC_PREFIXES
+    )
 
 
 def _unauthorized() -> JSONResponse:
