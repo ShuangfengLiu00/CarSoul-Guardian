@@ -8,6 +8,7 @@ from app.api.governance.router import router as governance_router
 from app.api.health.router import router as health_router
 from app.api.knowledge.router import router as knowledge_router
 from app.api.risk.router import router as risk_router
+from app.api.safety.router import router as safety_router
 from app.api.timeline.router import router as timeline_router
 from app.api.user.router import router as user_router
 from app.api.vehicle.router import router as vehicle_router
@@ -23,5 +24,6 @@ api_router.include_router(health_router, prefix="/health", tags=["health"])
 api_router.include_router(carsoul_router, prefix="/carsoul", tags=["carsoul-world-model"])
 api_router.include_router(governance_router, prefix="/governance", tags=["governance"])
 api_router.include_router(timeline_router, prefix="/timeline", tags=["timeline"])
+api_router.include_router(safety_router, prefix="/safety", tags=["safety-compliance"])
 
 __all__ = ["api_router"]

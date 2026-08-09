@@ -76,6 +76,20 @@ async def simulate_vehicles(count: int = 10, seed: int = 42):
     )
 
 
+async def compliance_gate_stats():
+    """Fetch real compliance-gate interception counts from carModel.
+
+    合规闸门跑在 **carModel 进程内**（agent/agent.py::_compliance_hit），
+    Guardian 与它是两个独立进程，靠 HTTP 通信。因此计数只能记在 carModel 侧，
+    Guardian 只做转发 —— 在 Guardian 里另起一个计数器只会数到"Guardian 自己
+    看到的那部分"，与真实拦截总量对不上，属于另一种失真。
+
+    carModel 读不到真值时返回 503，这里会原样变成 ``{"error": ...}``，
+    由上层显示"暂无数据"而**不是** 0。
+    """
+    return await _request("GET", "/agent/compliance/gate-stats", timeout=10.0)
+
+
 async def agent_chat(
     query: str,
     *,
