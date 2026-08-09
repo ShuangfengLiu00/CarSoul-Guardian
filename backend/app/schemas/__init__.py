@@ -60,6 +60,10 @@ from app.schemas.sensor_data import (
     SensorDataOut,
     SensorSeriesOut,
     SensorSeriesPoint,
+    SensorSnapshotDomain,
+    SensorSnapshotResponse,
+    SensorSnapshotSensor,
+    SensorSpecOut,
 )
 from app.schemas.trip import (
     TripCreate,
@@ -145,6 +149,10 @@ __all__ = [
     "SensorDataList",
     "SensorSeriesPoint",
     "SensorSeriesOut",
+    "SensorSpecOut",
+    "SensorSnapshotSensor",
+    "SensorSnapshotDomain",
+    "SensorSnapshotResponse",
     "TripCreate",
     "TripOut",
     "TripList",

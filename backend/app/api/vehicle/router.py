@@ -13,10 +13,18 @@ RESTful routes covering:
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.domain.sensor_registry import (
+    DOMAINS,
+    VHS_WEIGHTED_DOMAINS,
+    classify,
+    get_registry,
+)
 from app.schemas.alert import AlertCreate, AlertList, AlertOut, AlertUpdate
 from app.schemas.digital_state import (
     DigitalStateCreate,
@@ -75,6 +83,10 @@ from app.schemas.sensor_data import (
     SensorDataList,
     SensorDataOut,
     SensorSeriesOut,
+    SensorSnapshotDomain,
+    SensorSnapshotResponse,
+    SensorSnapshotSensor,
+    SensorSpecOut,
 )
 from app.schemas.trip import (
     TripCreate,
@@ -747,6 +759,152 @@ def get_sensor_series(
     if vehicle_service.get_vehicle(db, vehicle_id) is None:
         raise HTTPException(404, "Vehicle not found")
     return sensor_data_service.get_series(db, vehicle_id, sensor_type, hours)
+
+
+# Status → sub-score used by the snapshot's self-contained baseline VHS.
+_STATUS_SCORE = {"normal": 100.0, "warn": 70.0, "crit": 40.0}
+
+
+def _grade(score: float) -> tuple[str, str]:
+    """VHS grading thresholds (arch doc §3.4)."""
+    if score >= 95:
+        return "gold", "黄金车况"
+    if score >= 80:
+        return "excellent", "优秀"
+    if score >= 60:
+        return "general", "一般"
+    return "risk", "风险车辆"
+
+
+@router.get(
+    "/{vehicle_id}/sensors/snapshot", response_model=SensorSnapshotResponse
+)
+def get_sensor_snapshot(
+    vehicle_id: int,
+    domain: str | None = Query(
+        None, description="逗号分隔的域筛选，如 battery,motor；缺省返回全部 6 域"
+    ),
+    include_spec: bool = Query(True, description="是否返回范围/阈值/采样率元数据"),
+    db: Session = Depends(get_db),
+) -> SensorSnapshotResponse:
+    """全车传感器当前快照 —— 模拟面板的基线（arch doc §4.5.1）。
+
+    58 项信号按 6 个域分组返回，每项带 registry spec、当前值与 normal/warn/crit
+    状态；`baseline` 是一个自包含的简化 VHS 基线分；`provenance` 是 GOAI 溯源信封。
+    """
+    vehicle = vehicle_service.get_vehicle(db, vehicle_id)
+    if vehicle is None:
+        raise HTTPException(404, "Vehicle not found")
+    if sensor_data_service.count(db, vehicle_id) == 0:
+        raise HTTPException(
+            409,
+            "该车辆暂无传感器数据，请先调用 POST /api/vehicle/{vehicle_id}/simulate "
+            "生成模拟数据",
+        )
+
+    energy_type = vehicle.fuel_type or "electric"
+
+    wanted: set[str] | None = None
+    if domain:
+        wanted = {d.strip() for d in domain.split(",") if d.strip()}
+        unknown = wanted - set(DOMAINS)
+        if unknown:
+            raise HTTPException(400, f"未知的传感器域: {','.join(sorted(unknown))}")
+
+    specs = [
+        s for s in get_registry(energy_type)
+        if wanted is None or s.domain in wanted
+    ]
+
+    grouped: dict[str, list[SensorSnapshotSensor]] = {}
+    for spec in specs:
+        row = sensor_data_service.latest_reading(db, vehicle_id, spec.sensor_type)
+        if row is not None:
+            value = float(row.sensor_value)
+            unit = row.unit or spec.unit
+            source = "seed"
+        else:
+            value = float(spec.baseline)
+            unit = spec.unit
+            source = "default"
+        grouped.setdefault(spec.domain, []).append(
+            SensorSnapshotSensor(
+                sensor_type=spec.sensor_type,
+                label=spec.label,
+                value=round(value, 4),
+                unit=unit,
+                spec=SensorSpecOut(
+                    min=spec.min,
+                    max=spec.max,
+                    warn_low=spec.warn_low,
+                    warn_high=spec.warn_high,
+                    crit_low=spec.crit_low,
+                    crit_high=spec.crit_high,
+                    step=spec.step,
+                    sample_hz_can=spec.sample_hz_can,
+                    sample_hz_upload=spec.sample_hz_upload,
+                    adjustable=spec.adjustable,
+                ) if include_spec else None,
+                status=classify(spec, value),
+                source=source,
+            )
+        )
+
+    domains_out: list[SensorSnapshotDomain] = []
+    domain_scores: dict[str, float] = {}
+    for key, meta in DOMAINS.items():
+        sensors = grouped.get(key)
+        if not sensors:
+            continue
+        domain_scores[key] = round(
+            sum(_STATUS_SCORE[s.status] for s in sensors) / len(sensors), 1
+        )
+        domains_out.append(SensorSnapshotDomain(
+            domain=key,
+            label=meta["label"],
+            vhs_component=meta["vhs_component"],
+            vhs_weight=meta["vhs_weight"],
+            sensors=sensors,
+        ))
+
+    # Weighted over the sensor-driven VHS domains only. Driving / Maintenance
+    # (0.15 each) are not sensor-derived, so the remaining weights are
+    # re-normalised to 1.0 instead of capping the score at 0.70.
+    weighted = [
+        (DOMAINS[k]["vhs_weight"], v)
+        for k, v in domain_scores.items()
+        if k in VHS_WEIGHTED_DOMAINS
+    ]
+    total_weight = sum(w for w, _ in weighted)
+    if total_weight > 0:
+        raw = sum(w * v for w, v in weighted) / total_weight
+    elif domain_scores:
+        raw = sum(domain_scores.values()) / len(domain_scores)
+    else:
+        raw = 0.0
+    health_score = round(max(0.0, min(100.0, raw)), 1)
+    grade, grade_label = _grade(health_score)
+
+    now = datetime.utcnow()
+    return SensorSnapshotResponse(
+        vehicle_id=vehicle_id,
+        as_of=now,
+        energy_type=energy_type,
+        domains=domains_out,
+        baseline={
+            "health_score": health_score,
+            "grade": grade,
+            "grade_label": grade_label,
+            "breakdown": domain_scores,
+        },
+        provenance={
+            "data_source": "seed",
+            "demo_mode": True,
+            "badge_level": "L2b",
+            "origin": "seed:init_db",
+            "as_of": now.isoformat() + "Z",
+        },
+    )
 
 
 @router.post(

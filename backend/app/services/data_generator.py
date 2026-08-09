@@ -15,6 +15,12 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.domain.sensor_registry import (
+    LEGACY_EV_SENSORS,
+    SENSOR_REGISTRY,
+    SensorSpec,
+    get_registry,
+)
 from app.models.fault_log import VehicleFaultLog
 from app.models.sensor_data import VehicleSensorData
 from app.models.trip import VehicleTrip
@@ -24,6 +30,12 @@ from app.services import digital_state_service
 
 # ---- Sensor blueprints by energy type ----
 # Each entry: (sensor_type, unit, baseline, jitter, low_alert, high_alert)
+#
+# EV vehicles no longer use a local tuple list: their signal model lives in
+# ``app.domain.sensor_registry`` (58 sensors / 6 domains) and is shared with
+# ``GET /sensors/snapshot``.  Combustion vehicles keep the legacy blueprint
+# below because ICE-only signals (engine_temp, rpm, fuel_level, …) are out of
+# the EV registry's scope.
 _FUEL_SENSORS = [
     ("engine_temp", "℃", 92, 6, 70, 115),
     ("coolant_temp", "℃", 88, 5, 70, 110),
@@ -39,25 +51,10 @@ _FUEL_SENSORS = [
     ("speed", "km/h", 0, 60, 0, 200),
 ]
 
-_ELECTRIC_SENSORS = [
-    ("battery_voltage", "V", 398, 8, 320, 420),
-    ("battery_temp", "℃", 28, 5, 0, 50),
-    ("battery_level", "%", 70, 6, 0, 100),
-    ("motor_temp", "℃", 45, 10, 0, 120),
-    ("tire_pressure_fl", "bar", 2.5, 0.1, 1.8, 3.0),
-    ("tire_pressure_fr", "bar", 2.5, 0.1, 1.8, 3.0),
-    ("tire_pressure_rl", "bar", 2.4, 0.1, 1.8, 3.0),
-    ("tire_pressure_rr", "bar", 2.4, 0.1, 1.8, 3.0),
-    ("cabin_temp", "℃", 23, 3, 0, 40),
-    ("speed", "km/h", 0, 60, 0, 200),
-    ("power_draw", "kW", 12, 18, 0, 150),
-    ("regen_brake", "kW", 0, 20, 0, 50),
-]
-
 # ---- Fault templates ----
 _FAULT_TEMPLATES = [
     ("P0420", "high", "三元催化效率低于阈值", "engine"),
-    ("P0301", "high", "1缸偶发失火", "engine"),
+    ("P0A3F", "high", "驱动电机转矩异常", "motor"),
     ("P0171", "medium", "燃油系统过稀", "engine"),
     ("P0442", "low", "EVAP系统小泄漏", "engine"),
     ("P0500", "high", "车速传感器信号异常", "electronics"),
@@ -72,14 +69,24 @@ _ROAD_CONDITIONS = ["urban", "highway", "suburban", "mountain", "rural"]
 _WEATHER = ["sunny", "cloudy", "rainy", "snowy", "foggy"]
 
 
+def _as_tuple(spec: SensorSpec) -> tuple:
+    """Flatten a registry spec into the generator's blueprint tuple shape."""
+    return (spec.sensor_type, spec.unit, spec.baseline, spec.jitter,
+            spec.min, spec.max)
+
+
 def _sensor_blueprint(vehicle: Vehicle) -> list[tuple]:
     if vehicle.fuel_type in ("electric",):
-        return _ELECTRIC_SENSORS
+        # Full 58-sensor EV registry.
+        return [_as_tuple(s) for s in get_registry("electric")]
     if vehicle.fuel_type in ("hybrid", "plug_in_hybrid"):
-        # Hybrid: merge unique sensor types from both sets.
+        # Hybrid: merge unique sensor types from both sets. Deliberately uses
+        # only the 12 legacy EV signals (not the full 58) so hybrid generation
+        # stays identical to pre-registry behaviour.
+        legacy_ev = [_as_tuple(SENSOR_REGISTRY[n]) for n in LEGACY_EV_SENSORS]
         seen = set()
         merged = []
-        for s in _ELECTRIC_SENSORS + _FUEL_SENSORS:
+        for s in legacy_ev + _FUEL_SENSORS:
             if s[0] not in seen:
                 merged.append(s)
                 seen.add(s[0])

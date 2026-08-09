@@ -90,6 +90,21 @@ def get_series(
     )
 
 
+def latest_reading(
+    db: Session, vehicle_id: int, sensor_type: str
+) -> VehicleSensorData | None:
+    """Return the most recent reading for one sensor type, or None."""
+    return db.scalar(
+        select(VehicleSensorData)
+        .where(
+            VehicleSensorData.vehicle_id == vehicle_id,
+            VehicleSensorData.sensor_type == sensor_type,
+        )
+        .order_by(VehicleSensorData.created_at.desc(), VehicleSensorData.id.desc())
+        .limit(1)
+    )
+
+
 def list_sensor_types(db: Session, vehicle_id: int) -> list[str]:
     rows = db.scalars(
         select(VehicleSensorData.sensor_type)
