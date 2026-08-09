@@ -82,6 +82,14 @@ export default defineConfig({
         target: "http://localhost:8000",
         changeOrigin: true,
       },
+      // carModel 健康探针：与 Guardian 的 /health 同 origin 冲突，单独开 /carmodel 前缀。
+      // rewrite 去掉前缀 → :8000/health，与 deploy/nginx.conf 的 /carmodel/health 一致，
+      // 保证开发态（vite proxy）与生产态（nginx）行为一致。
+      "/carmodel": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+        rewrite: (p: string) => p.replace(/^\/carmodel/, ""),
+      },
     },
   },
 });
