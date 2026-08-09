@@ -142,10 +142,13 @@ cp .env.example .env
 bash deploy/start-dev.sh
 ```
 
-启动后：
-- 前端：http://localhost:5173
-- 后端：http://localhost:8000
-- API 文档：http://localhost:8000/docs
+启动后（开发模式，Vite 直连）：
+- 前端（Vite dev）：http://localhost:5173
+- 后端（Guardian）：http://localhost:8001
+- 世界模型（carModel）：http://localhost:8000
+- API 文档：http://localhost:8001/docs（Guardian）/ http://localhost:8000/docs（carModel）
+
+> 生产模式请见下方「四-B 生产部署（nginx 反代）」：前端统一由 nginx 在 `:8080` 提供，API 走同源相对路径 `/api`，无需设置 `VITE_API_BASE_URL`（VITE_* 仅构建期生效，运行时无效）。
 
 ### 方式 B：手动分步
 
@@ -155,7 +158,7 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate          # Windows  # source .venv/bin/activate (mac/linux)
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8001
 
 # 前端（新终端）
 cd frontend
@@ -167,10 +170,56 @@ npm run dev
 
 ```bash
 cp .env.example .env
-docker compose up --build
+# 默认只起 backend + frontend(nginx)；carModel 世界模型引擎需显式启用：
+docker compose up --build                                   # 基础栈：前端 :8080 / 后端 :8001
+docker compose --profile with-carmodel up --build           # 含 carModel 世界模型 :8000（/cockpit、/docs、/openapi.json）
 ```
 
 > **离线可用：** 即使没有 PostgreSQL 和 LLM Key，后端仍可启动（SQLite 回退），Agent 走规则响应，适合比赛 Demo。
+
+### 四-B 生产部署（nginx 反代门户）
+
+前端在生产态不再用 `vite preview`，而是构建为静态产物后由 **nginx** 统一托管 SPA 并反向代理所有后端接口。`frontend` 容器基于 `Dockerfile.frontend`（multi-stage：`npm ci` → `npm run build` → `nginx:1.27-alpine`）。
+
+**端口映射**
+
+| 服务 | 容器端口 | 宿主机 | 说明 |
+|------|---------|--------|------|
+| frontend (nginx) | 80 | **8080** | 门户入口，SPA + API 反代 |
+| backend (Guardian) | **8001** | 8001 | FastAPI，路由前缀 `/api`，`/health` 在根 |
+| carModel (world-model) | 8000 | 8000 | 世界模型引擎（可选，`--profile with-carmodel`）；挂载 `/cockpit` 静态页，自动提供 `/docs`、`/openapi.json` |
+
+> ⚠️ 端口约定：carModel 世界模型引擎已占用 `:8000`，因此 Guardian 后端固定在 `:8001`，与 `deploy/nginx.conf` 的 `$guardian_upstream`、各 Dockerfile/启动脚本保持一致。**三者任一改端口都必须同步这三处。**
+
+**nginx 路由规则（见 `deploy/nginx.conf`）**
+
+| Location | 转发目标 | 说明 |
+|----------|---------|------|
+| `/api/`（前缀） | `guardian-backend:8001$request_uri` | Guardian 全部业务接口 |
+| `= /health` | `guardian-backend:8001/health` | Guardian 健康检查（根级，非 `/api` 下） |
+| `= /docs` | `carmodel:8000/docs` | 仅 carModel 提供 Swagger UI |
+| `= /openapi.json` | `carmodel:8000/openapi.json` | 须与 `/docs` 成对出现 |
+| `^~ /cockpit` | `carmodel:8000$request_uri` | carModel 前端静态页 |
+| `= /carmodel/health` | `carmodel:8000/health` | 规避与 Guardian `/health` 冲突 |
+| `/`（兜底） | `try_files $uri $uri/ /index.html` | SPA fallback，**必须放最后** |
+
+关键点：
+- 使用变量化 upstream + `resolver 127.0.0.11`（Docker 内置 DNS），**carModel 缺席时前端容器仍能启动**，不会因 DNS 解析失败而 crash。
+- location 优先级：`=` 精确 > `^~` 前缀 > 正则 > 前缀；SPA fallback 用前缀 location 兜底，避免「404 被 SPA 兜成 200 假成功」的陷阱。
+- `/assets/` 设 1 年缓存，`/index.html` 设 `no-cache`。
+
+**API 同源策略**
+前端代码统一使用相对路径 `/api/...`，由 nginx 同源转发。运行时**不要**依赖 `VITE_API_BASE_URL`（VITE_* 仅为构建期变量，容器运行时无效）——这是早期 `docker-compose.yml` 里一处无效配置，已移除。
+
+**构建门禁提示**
+`Dockerfile.frontend` 保留了 `npm run build`（含 `tsc` 类型检查）。当前前端存在已知 tsc 类型错误（`EvolutionEngine.tsx` 约 90 处、`services/index.ts` 重复导出 3 处），**正在等待产品架构决议（A2）统一处置**，在此之前 `docker compose build frontend` 会因类型检查失败而中断。开发态（方式 A/B）不受影响。
+
+**关键文件**
+- `deploy/nginx.conf` — 门户反代配置
+- `Dockerfile.frontend` — 前端生产镜像（nginx 托管）
+- `Dockerfile.backend` — 后端镜像（`:8001`）
+- `docker-compose.yml` — 编排（frontend 用 nginx；`with-carmodel` profile 拉起 carModel）
+- `deploy/start-dev.ps1` / `deploy/start-dev.sh` — 开发一键启动（后端 `:8001`）
 
 ### 「一辆车的一生」Demo
 
@@ -242,7 +291,7 @@ python kernel/tests/run_evaluation.py
 | `JWT_SECRET` | JWT 签名密钥（生产务必修改） | change-me |
 | `OPENAI_API_KEY` | LLM 密钥（留空则 Agent 走离线规则响应） | 空 |
 | `MODEL_NAME` | 模型名 | gpt-4o-mini |
-| `CORS_ORIGINS` | 允许的前端来源 | localhost:5173 |
+| `CORS_ORIGINS` | 允许的前端来源 | localhost:5173,http://localhost:8080 |
 
 ---
 

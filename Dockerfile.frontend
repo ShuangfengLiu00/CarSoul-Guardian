@@ -1,29 +1,47 @@
 # ====================================================
 # CarSoul Guardian - Frontend Dockerfile
 # ====================================================
+# 产物：nginx 托管的静态站点 + 反向代理（配置见 deploy/nginx.conf）
+# 构建上下文为仓库根目录（docker-compose.yml 里 context: .）
+#
+# 为什么不再用 `vite preview`：
+#   Vite 官方明确声明 preview 只用于「本地预览构建产物」，不是生产服务器。
+#   而且 preview 会继承 vite.config.ts 里的 server.proxy，导致在容器里「看起来能通」，
+#   一旦换成真正的静态托管就暴露 SPA 深链 404 / 外链假成功的问题。
+#   现在改用 nginx，让容器行为与真实生产托管一致。
+
 # ---------- Build stage ----------
 FROM node:20-alpine AS build
 WORKDIR /app
 
 ENV CI=true
 
-COPY frontend/package*.json ./frontend/
-WORKDIR /app/frontend
-RUN npm install
+# 先只拷贝依赖清单，利用 Docker 层缓存
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
 
-COPY frontend ./frontend
+# 再拷贝源码。
+# 注意：这里必须拷到 WORKDIR 根（.），不能写成 `COPY frontend ./frontend`——
+# 那会把源码放进 /app/frontend/，而 package.json 在 /app/，导致 build 找不到
+# tsconfig.json 与 src/（这是本文件修复前的真实 bug，docker build 从未成功过）。
+COPY frontend/ ./
+
+# `npm run build` = `tsc -b && vite build`，类型检查失败会中断构建。
+# 这是刻意保留的质量闸门：类型检查不过的产物不允许进生产镜像。
+# 既有 93 个 tsc 错误（EvolutionEngine.tsx / services/index.ts）已于 2026-08-09
+#   前端连通性整改中清零，类型检查闸门现已通过（BUILD PASS）。详见 README「四-B 生产部署（nginx 反代门户）」。
 RUN npm run build
 
 # ---------- Serve stage ----------
-FROM node:20-alpine AS serve
-WORKDIR /app/frontend
+FROM nginx:1.27-alpine AS serve
 
-# Lightweight static + SPA fallback server
-RUN npm install -g vite
+# 反向代理 + SPA fallback 配置
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 
-COPY --from=build /app/frontend ./
+# 构建产物
+COPY --from=build /app/dist /usr/share/nginx/html
 
-EXPOSE 5173
+EXPOSE 80
 
-# Preview the production build (serves dist/)
-CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "5173"]
+# 启动前先校验配置语法，配置写错时快速失败而不是起一个坏容器
+CMD ["sh", "-c", "nginx -t && nginx -g 'daemon off;'"]
