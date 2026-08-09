@@ -295,8 +295,9 @@ export default function Dashboard() {
 
   return (
     <div className="cs-dashboard">
-      {/* 演示模式固定角标（右上角） */}
-      {usingDemo && <DemoBadge />}
+      {/* 演示模式固定角标（右上角）——仅当 archive 真的 fallback 到 DEMO_ARCHIVE 时显示。
+          定级为 L2（条件式）：后端存在，仅当未连通才回落演示数据，角标随连通状态自动显隐。 */}
+      <DemoBadge level="L2" visible={usingDemo} />
 
       {/* 霸屏闪烁警示（critical 告警时触发） */}
       <CriticalAlertOverlay alerts={criticalAlerts} />
@@ -312,7 +313,8 @@ export default function Dashboard() {
           </Paragraph>
         </div>
         <Space>
-          <DemoBadge inline />
+          {/* 原先此处无条件挂载，真实数据下也会显示"模拟数据"——属反向失真，已改为条件式（L2） */}
+          <DemoBadge level="L2" visible={usingDemo} inline />
           <Tag color={agentPresentation.tagColor} style={{ borderRadius: 12, padding: "2px 12px" }}>
             <RobotOutlined /> {agentPresentation.label}
           </Tag>

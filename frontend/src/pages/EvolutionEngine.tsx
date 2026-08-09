@@ -148,11 +148,13 @@ function DashboardTab({
     );
   }
 
-  const exp = dashboard.experience || {};
-  const refl = dashboard.reflection || {};
-  const skill = dashboard.skill_evolution || {};
-  const evalSum = dashboard.evaluation || {};
-  const mem = dashboard.evolution_memory || {};
+  // 子对象在 EvolutionDashboard 中均为必填，桩默认返回 {}（各字段可选），
+  // 此处不再写 `|| {}`，避免产生 `Stats | {}` 联合类型导致属性访问报错。
+  const exp = dashboard.experience;
+  const refl = dashboard.reflection;
+  const skill = dashboard.skill_evolution;
+  const evalSum = dashboard.evaluation;
+  const mem = dashboard.evolution_memory;
 
   const successRate = Math.round((refl.success_rate ?? 0) * 100);
   const avgConfidence = Math.round((exp.avg_confidence ?? 0) * 100);
@@ -578,7 +580,7 @@ function ReflectionTab() {
                     <CosmicAlert
                       level="warning"
                       title="推理错误"
-                      detail={(r.reasoning_layer.reasoning_errors || []).join("； ")}
+                      detail={(r.reasoning_layer?.reasoning_errors || []).join("； ")}
                     />
                   </div>
                 )}
@@ -586,7 +588,7 @@ function ReflectionTab() {
                 {(r.reasoning_layer?.missing_data || []).length > 0 && (
                   <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     <span className="holo-text-dim" style={{ fontSize: 12 }}>缺失数据:</span>
-                    {(r.reasoning_layer.missing_data || []).map((d, i) => (
+                    {(r.reasoning_layer?.missing_data || []).map((d, i) => (
                       <HoloChip key={i} color="amber">{d}</HoloChip>
                     ))}
                   </div>
@@ -913,11 +915,14 @@ export default function EvolutionEngine() {
   const handleRunCycle = async () => {
     setRunning(true);
     try {
-      const result: CycleResult = await evolutionService.runCycle();
-      message.success(result.summary || "进化周期执行完成");
+      // /evolution 为演示页；runCycle 是桩，不产生真实进化结果。
+      // 不再用 result.summary（该字段不存在）谎报“执行完成”。
+      await evolutionService.runCycle();
+      // 演示页动作不真实写入，用 info（中性通知）而非 success（绿色对勾会夸大"成功"）。
+      message.info("进化周期已触发 · 演示模式");
       loadDashboard();
     } catch {
-      message.error("进化周期执行失败");
+      message.error("进化周期触发失败");
     } finally {
       setRunning(false);
     }
@@ -927,10 +932,12 @@ export default function EvolutionEngine() {
     setRunning(true);
     try {
       const result = await evolutionService.seedDemo();
-      message.success(result.message || "演示数据已植入");
+      // result.seeded 是桩返回的样本数（演示页不真实写入）；
+      // 如实展示，不谎报"已植入"；用 info 而非 success 避免夸大"成功"。
+      message.info(`演示数据种子已生成 · 演示模式（样本 ${result.seeded} 条）`);
       loadDashboard();
     } catch {
-      message.error("植入演示数据失败");
+      message.error("演示数据种子生成失败");
     } finally {
       setRunning(false);
     }
@@ -974,7 +981,7 @@ export default function EvolutionEngine() {
 
   return (
     <div style={{ position: "relative", zIndex: 2 }}>
-      <DemoBadge />
+      <DemoBadge level="L3" visible />
       {/* 页面标题 */}
       <h2 className="holo-section-title holo-anim-fade-in" style={{ fontSize: 22 }}>
         <RocketOutlined style={{ color: "var(--holo-cyan)", filter: "drop-shadow(0 0 8px var(--holo-cyan-glow))" }} />

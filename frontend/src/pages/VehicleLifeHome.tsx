@@ -36,7 +36,6 @@ import {
 import dayjs from "dayjs";
 import { vehicleService } from "@/services";
 import { useCurrentVehicle } from "@/hooks";
-import { DemoBadge } from "@/components";
 import type {
   VehicleLifeRecord,
   VehicleHealthScore,
@@ -637,7 +636,9 @@ export default function VehicleLifeHome() {
 
   return (
     <div>
-      <DemoBadge />
+      {/* 本页数据全部来自 vehicleService 真实接口（getLifeRecord / getHealthScore），
+          失败时置 null 走空态，没有任何 demo 数据分支 —— 故不挂 DemoBadge。
+          若后续引入占位数据，请用 <DemoBadge level="L2" visible={...} /> 条件式挂载。 */}
       {/* ---- Header ---- */}
       <div
         style={{
