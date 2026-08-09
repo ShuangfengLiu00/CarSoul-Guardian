@@ -17,8 +17,8 @@ $py = Join-Path $venv "Scripts\python.exe"
 & $py -m pip install --upgrade pip | Out-Null
 & $py -m pip install -r (Join-Path $ROOT "backend\requirements.txt") | Out-Null
 
-Write-Host "[2/4] 启动后端 FastAPI (http://localhost:8000)..." -ForegroundColor Yellow
-Start-Process -FilePath $py -ArgumentList "-m","uvicorn","app.main:app","--reload","--port","8000" -WorkingDirectory (Join-Path $ROOT "backend")
+Write-Host "[2/4] 启动后端 FastAPI (http://localhost:8001)..." -ForegroundColor Yellow
+Start-Process -FilePath $py -ArgumentList "-m","uvicorn","app.main:app","--reload","--port","8001" -WorkingDirectory (Join-Path $ROOT "backend")
 
 # --- Frontend ---
 Write-Host "`n[3/4] 安装前端依赖..." -ForegroundColor Yellow
@@ -28,5 +28,5 @@ Write-Host "[4/4] 启动前端 Vite (http://localhost:5173)..." -ForegroundColor
 Start-Process -FilePath "npm" -ArgumentList "run","dev"
 Pop-Location
 
-Write-Host "`n✔ 启动指令已发出。后端 http://localhost:8000  前端 http://localhost:5173" -ForegroundColor Green
-Write-Host "API 文档: http://localhost:8000/docs" -ForegroundColor Green
+Write-Host "`n✔ 启动指令已发出。后端(Guardian) http://localhost:8001  前端(Vite) http://localhost:5173" -ForegroundColor Green
+Write-Host "API 文档(Guardian): http://localhost:8001/docs  世界模型(carModel): http://localhost:8000/docs" -ForegroundColor Green
