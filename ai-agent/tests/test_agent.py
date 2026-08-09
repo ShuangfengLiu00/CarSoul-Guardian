@@ -11,41 +11,68 @@ Covers:
 import sys
 from pathlib import Path
 
+import pytest
+
 # Make the package importable when running tests directly.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from carsoul_agent.agents.carsoul_agent import CarSoulGuardianAgent  # noqa: E402
 from carsoul_agent.agents.core import CoreWorkflow, build_core_workflow  # noqa: E402
 from carsoul_agent.agents.core.state import AgentState, Trace  # noqa: E402
+from carsoul_agent.config import settings as agent_settings  # noqa: E402
 from carsoul_agent.tools import default_registry  # noqa: E402
 from carsoul_agent.tools.guard_tools import action_store  # noqa: E402
+
+
+@pytest.fixture()
+def offline_agent(monkeypatch):
+    """一个**确定**没有大模型的 Agent。
+
+    构造环境里可能存在 OPENAI_API_KEY，那样 ``llm_enabled`` 会是 True，
+    离线断言就会变得不确定。这里把 key 清空，确保"离线"名副其实。
+    """
+    monkeypatch.setattr(agent_settings, "openai_api_key", "", raising=False)
+    return CarSoulGuardianAgent()
 
 
 # ------------------------------------------------------------------ #
 #  Backward-compatible smoke tests
 # ------------------------------------------------------------------ #
-def test_agent_offline_responds():
-    """Main agent still works offline (no LLM key)."""
-    agent = CarSoulGuardianAgent()
-    result = agent.handle(message="我的车需要保养吗", user="tester")
-    assert result["agent_status"] == "active"
+def test_agent_offline_responds(offline_agent):
+    """Main agent still works offline (no LLM key).
+
+    离线时状态必须是 degraded。这里曾经断言 ``== "active"`` —— 那不是在
+    保护正确行为，而是在**锁定**洗白链第七层（handle() 硬编码 active）：
+    一个没有任何大模型的规则专家团被测试要求自称"运行中"。
+    """
+    result = offline_agent.handle(message="我的车需要保养吗", user="tester")
+    assert result["agent_status"] == "degraded"
+    assert result["llm_used"] is False
+    assert result["llm_available"] is False
+    assert result["llm_configured"] is False
+    assert result["degraded"]["reason"] == "local_agent_no_llm_client"
     assert len(result["answer"]) > 0
 
 
-def test_agent_health_query():
+def test_agent_health_query(offline_agent):
     """Health query triggers the workflow and returns a substantive answer."""
-    agent = CarSoulGuardianAgent()
-    result = agent.handle(message="我的车健康状态怎么样", user="tester")
-    assert result["agent_status"] == "active"
+    result = offline_agent.handle(message="我的车健康状态怎么样", user="tester")
+    # 同上：走的是规则工作流，没有任何大模型转述，只能报 degraded。
+    assert result["agent_status"] == "degraded"
+    assert result["llm_used"] is False
+    assert result["route"] == "workflow"
     # The answer should mention the vehicle or a diagnosis.
     assert any(k in result["answer"] for k in ["Tesla", "守护", "风险", "健康"])
 
 
-def test_agent_greeting():
+def test_agent_greeting(offline_agent):
     """Greeting returns a lightweight reply without the workflow."""
-    agent = CarSoulGuardianAgent()
-    result = agent.handle(message="你好", user="tester")
+    result = offline_agent.handle(message="你好", user="tester")
     assert "CarSoul Guardian" in result["answer"]
+    # 打招呼是纯模板，永远不该被算作"大模型在工作"。
+    assert result["route"] == "greeting"
+    assert result["llm_used"] is False
+    assert result["agent_status"] == "degraded"
 
 
 # ------------------------------------------------------------------ #
@@ -566,6 +593,115 @@ class _MockLLMClient:
             )
 
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=_create))
+
+
+# ------------------------------------------------------------------ #
+#  诚实降级：agent_status 必须由真实 LLM 调用推导
+#  （active 洗白链第七层的回归测试）
+# ------------------------------------------------------------------ #
+class _StubRetrievalCtx:
+    """最小可用的 RAG 检索结果，用于驱动 knowledge 路径上的 LLM 分支。"""
+
+    is_empty = False
+    context_text = "知识库片段：机油更换周期通常为 1 万公里或一年。"
+    results: list = []
+
+    @staticmethod
+    def sources() -> list[str]:
+        return ["保养手册"]
+
+
+class _StubKB:
+    def retrieve(self, query: str, top_k: int = 4) -> _StubRetrievalCtx:
+        return _StubRetrievalCtx()
+
+
+class _FailingLLMClient:
+    """调用必定抛异常的 client —— 模拟"配置了但链路实际不通"。"""
+
+    def __init__(self) -> None:
+        from types import SimpleNamespace
+
+        def _create(**kwargs: object) -> object:
+            raise RuntimeError("connection refused")
+
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=_create))
+
+
+def test_tracked_client_counts_successful_calls():
+    """代理在 chat.completions.create 收口点打点，覆盖整棵子专家调用树。"""
+    from carsoul_agent.agents.carsoul_agent import _LLMCallRecorder, _TrackedLLMClient
+
+    recorder = _LLMCallRecorder()
+    client = _TrackedLLMClient(_MockLLMClient("ok"), recorder)
+    assert recorder.succeeded == 0
+
+    client.chat.completions.create(messages=[{"content": "hi"}])
+    assert recorder.succeeded == 1
+    assert recorder.failed == 0
+
+
+def test_tracked_client_counts_failures_not_successes():
+    """调用抛异常不算"用上了大模型"——那一轮回答其实是规则兜底产出的。"""
+    from carsoul_agent.agents.carsoul_agent import _LLMCallRecorder, _TrackedLLMClient
+
+    recorder = _LLMCallRecorder()
+    client = _TrackedLLMClient(_FailingLLMClient(), recorder)
+
+    with pytest.raises(RuntimeError):
+        client.chat.completions.create(messages=[{"content": "hi"}])
+    assert recorder.succeeded == 0
+    assert recorder.failed == 1
+
+
+def test_agent_reports_active_only_when_llm_really_answered():
+    """反向验证：真的调通大模型时才报 active。
+
+    没有这条，把 ``agent_status`` 恒定改成 "degraded" 也能让离线用例通过 ——
+    那只是把谎言换了个方向。这里证明该字段确实跟随事实变化。
+    """
+    agent = CarSoulGuardianAgent()
+    agent._kb = _StubKB()
+    agent._client = agent._wrap_llm_client(_MockLLMClient("机油建议每 1 万公里更换。"))
+
+    result = agent.handle(message="机油多久换一次", user="tester")
+    assert result["route"] == "knowledge_rag"
+    assert result["llm_used"] is True
+    assert result["llm_available"] is True
+    assert result["agent_status"] == "active"
+    assert result["degraded"] is None
+    assert result["llm_calls"]["succeeded"] == 1
+
+
+def test_agent_degrades_when_llm_configured_but_call_fails():
+    """配置了大模型 ≠ 大模型可用。调用失败必须如实降级。"""
+    agent = CarSoulGuardianAgent()
+    agent._kb = _StubKB()
+    agent._client = agent._wrap_llm_client(_FailingLLMClient())
+
+    result = agent.handle(message="机油多久换一次", user="tester")
+    assert result["llm_configured"] is True
+    assert result["llm_used"] is False
+    assert result["llm_available"] is False
+    assert result["agent_status"] == "degraded"
+    assert result["degraded"]["reason"] == "local_agent_llm_call_failed"
+
+
+def test_agent_status_not_carried_over_between_turns():
+    """上一轮调通了不代表这一轮也调了 —— 计数器必须每轮清零。"""
+    agent = CarSoulGuardianAgent()
+    agent._kb = _StubKB()
+    agent._client = agent._wrap_llm_client(_MockLLMClient("机油建议每 1 万公里更换。"))
+
+    first = agent.handle(message="机油多久换一次", user="tester")
+    assert first["agent_status"] == "active"
+
+    # 打招呼是纯模板路径，不会调用大模型。
+    second = agent.handle(message="你好", user="tester")
+    assert second["route"] == "greeting"
+    assert second["llm_used"] is False
+    assert second["agent_status"] == "degraded"
+    assert second["degraded"]["reason"] == "local_agent_rule_only_path"
 
 
 def test_diagnosis_offline_knowledge_match():

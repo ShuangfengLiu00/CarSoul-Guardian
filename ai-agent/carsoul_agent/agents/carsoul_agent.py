@@ -42,6 +42,98 @@ from carsoul_agent.tools.guard_tools import action_store
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------- #
+#  LLM usage tracking — 诚实降级的事实来源
+# ---------------------------------------------------------------------- #
+# 本 Agent 是**规则专家团**，不是大模型。它只在配置了 OPENAI_API_KEY 时
+# 才可能调用 LLM，而且三条路由里只有部分会真的调用：
+#   - greeting 路径：纯模板，永远不调 LLM
+#   - knowledge 路径：仅当 RAG 命中且 client 存在时才调
+#   - workflow 路径：五个子专家各自决定调不调，失败会静默回退到规则
+# 因此"有没有 client"根本不等于"这一轮有没有真的用上大模型"。
+# 历史代码在 handle() 里硬编码 agent_status="active"，等于替这三条路
+# 全部作证"大模型在跑"——这是洗白链的第七层。
+#
+# 这里用一个透明代理包住 client，所有子专家共享同一个 client 对象
+# （见 _init_governance()：perception/diagnosis/risk/explainer/service
+# 以及 diagnosis 内部的专家团都收到同一个实例），所以在
+# ``chat.completions.create`` 这一个收口点计数，就能覆盖整棵调用树。
+# 只在调用**成功返回**后计数：抛异常的调用意味着这一轮回答其实是规则
+# 兜底产出的，不算"用上了大模型"。
+
+
+class _LLMCallRecorder:
+    """记录一轮对话里真实发生的 LLM 调用次数与失败次数。"""
+
+    __slots__ = ("succeeded", "failed")
+
+    def __init__(self) -> None:
+        self.succeeded = 0
+        self.failed = 0
+
+    def reset(self) -> None:
+        self.succeeded = 0
+        self.failed = 0
+
+    def mark_success(self) -> None:
+        self.succeeded += 1
+
+    def mark_failure(self) -> None:
+        self.failed += 1
+
+    @property
+    def attempted(self) -> int:
+        return self.succeeded + self.failed
+
+
+class _TrackedCompletions:
+    """代理 ``client.chat.completions``，在 create() 上打点。"""
+
+    def __init__(self, inner: Any, recorder: _LLMCallRecorder) -> None:
+        self._inner = inner
+        self._recorder = recorder
+
+    def create(self, *args: Any, **kwargs: Any) -> Any:
+        try:
+            result = self._inner.create(*args, **kwargs)
+        except Exception:
+            self._recorder.mark_failure()
+            raise
+        self._recorder.mark_success()
+        return result
+
+    def __getattr__(self, item: str) -> Any:
+        return getattr(self._inner, item)
+
+
+class _TrackedChat:
+    """代理 ``client.chat``。"""
+
+    def __init__(self, inner: Any, recorder: _LLMCallRecorder) -> None:
+        self._inner = inner
+        self.completions = _TrackedCompletions(inner.completions, recorder)
+
+    def __getattr__(self, item: str) -> Any:
+        return getattr(self._inner, item)
+
+
+class _TrackedLLMClient:
+    """OpenAI 兼容 client 的透明代理，唯一目的是让"这一轮到底调没调大模型"
+    成为可观测事实，而不是靠猜或者靠硬编码。
+
+    除 ``chat.completions.create`` 外的所有属性一律透传给内层 client。
+    """
+
+    def __init__(self, inner: Any, recorder: _LLMCallRecorder) -> None:
+        self._inner = inner
+        self._recorder = recorder
+        self.chat = _TrackedChat(inner.chat, recorder)
+
+    def __getattr__(self, item: str) -> Any:
+        return getattr(self._inner, item)
+
+
 # Keywords that trigger the full workflow vs. a lightweight greeting reply.
 _WORKFLOW_TRIGGERS = [
     "健康", "状态", "怎么样", "保养", "maintenance", "换油", "机油", "保养计划",
@@ -84,8 +176,10 @@ class CarSoulGuardianAgent(BaseAgent):
         self._client = None
         self._kb = None  # lazy knowledge base (RAG)
         self._engine: WorkflowEngine | None = None
+        # 每轮对话真实 LLM 调用的计数器（见模块顶部说明）。
+        self._llm_calls = _LLMCallRecorder()
         if self.settings.llm_enabled:
-            self._client = self._init_openai_client()
+            self._client = self._wrap_llm_client(self._init_openai_client())
             # Configure the workflow to use the LLM.
             CoreWorkflow.configure(
                 llm_client=self._client,
@@ -126,6 +220,20 @@ class CarSoulGuardianAgent(BaseAgent):
         except Exception as exc:  # noqa: BLE001
             logger.warning("OpenAI client init failed: %s", exc)
             return None
+
+    def _wrap_llm_client(self, client: Any) -> Any:
+        """用调用计数代理包住 LLM client，使"本轮是否真的调了大模型"可观测。
+
+        包装失败不影响功能，只会让本轮无法自证调用过 LLM —— 按"未证明可用
+        即视为不可用"的原则，那种情况下如实降级，绝不反向假设成功。
+        """
+        if client is None:
+            return None
+        try:
+            return _TrackedLLMClient(client, self._llm_calls)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("LLM usage tracking unavailable (%s); reporting conservatively.", exc)
+            return client
 
     def _init_governance(self) -> None:
         """Initialise the governance registry and workflow engine.
@@ -179,23 +287,83 @@ class CarSoulGuardianAgent(BaseAgent):
         session_id = self._ensure_session(session_id, user)
         self._remember(session_id, "user", message)
 
+        # 每轮开始清零：agent_status 必须反映**这一轮**的事实，
+        # 不能被上一轮成功的调用带绿。
+        self._llm_calls.reset()
+
         # Route: greeting/FAQ → direct reply; knowledge question → RAG;
         # substantive vehicle issue → five-sub-agent workflow.
         closed_loop: dict[str, Any] | None = None
         if self._is_greeting(message):
+            route = "greeting"
             answer = self._greeting_reply(user)
         elif self._is_knowledge_question(message):
+            route = "knowledge_rag"
             answer = self._knowledge_answer(message, user)
         else:
+            route = "workflow"
             answer, closed_loop = self._run_workflow(message, user)
 
         self._remember(session_id, "assistant", answer)
         return {
             "answer": answer,
-            "agent_status": "active",
             "session_id": session_id,
             "agent_name": self.name,
             "closed_loop": closed_loop,
+            **self._llm_link_report(route),
+        }
+
+    def _llm_link_report(self, route: str) -> dict[str, Any]:
+        """如实汇报本轮的大模型链路状态。
+
+        这里曾经硬编码 ``"agent_status": "active"`` —— 一个没有任何大模型的
+        规则专家团，凭什么报"运行中"。那是 active 洗白链的第七层。现在状态
+        由本轮真实发生的调用推导：
+
+        - ``llm_used``      本轮是否有 LLM 调用**成功返回**。
+        - ``llm_available`` 本轮是否观测到链路可用。本 Agent 没有独立健康
+          探针，唯一证据就是真实调用的结果，因此按"未证明可用即视为不可用"
+          取保守值，不做任何乐观假设。
+        - ``agent_status``  只有"链路可用且本轮真的调了"才算 active。
+
+        注意：Guardian 边界层 (``backend/app/services/agent_service.py``) 依然
+        会**忽略**这里的 ``agent_status`` 并自行推导 —— 边界不信任内层自述是
+        正确的架构姿势，双保险保留。本函数负责的是让内层自己也不再说谎。
+        """
+        succeeded = self._llm_calls.succeeded
+        failed = self._llm_calls.failed
+        configured = self._client is not None
+
+        llm_used = succeeded > 0
+        # 无独立探针：可用性只能以"本轮确有成功调用"为证据。
+        llm_available = succeeded > 0
+
+        if llm_used:
+            degraded: dict[str, Any] | None = None
+        elif not configured:
+            degraded = {
+                "reason": "local_agent_no_llm_client",
+                "detail": "本地规则专家团未配置大模型（llm_enabled=false 或 client 初始化失败），回答由规则产出",
+            }
+        elif failed > 0:
+            degraded = {
+                "reason": "local_agent_llm_call_failed",
+                "detail": f"本轮 {failed} 次大模型调用全部失败，已回退到规则产出",
+            }
+        else:
+            degraded = {
+                "reason": "local_agent_rule_only_path",
+                "detail": f"本轮走的是 {route} 规则路径，未发起任何大模型调用",
+            }
+
+        return {
+            "agent_status": "active" if (llm_available and llm_used) else "degraded",
+            "llm_available": llm_available,
+            "llm_used": llm_used,
+            "llm_configured": configured,
+            "llm_calls": {"succeeded": succeeded, "failed": failed},
+            "route": route,
+            "degraded": degraded,
         }
 
     # ------------------------------------------------------------------
