@@ -196,10 +196,19 @@ def test_public_allow_list_is_narrow_and_explicit():
 
 
 def test_is_public_prefixes():
-    """静态资源前缀也免鉴权（由 nginx 提供，后端不挂静态）。"""
+    """静态资源前缀也免鉴权（由 nginx 提供，后端不挂静态）。
+
+    前缀匹配必须带边界：`/staticX`、`/assetsfoo` 这类**不是** `/static` 或
+    `/assets` 目录的字符串，绝不能因前缀匹配被豁免——否则哪天加了
+    `/staticdata/export` 端点就会静默无鉴权。
+    """
     assert _is_public("/static/app.js") is True
     assert _is_public("/assets/logo.png") is True
+    assert _is_public("/static") is True            # 前缀本身也算公共资源
     assert _is_public("/api/vehicle/1/state") is False
+    assert _is_public("/staticX") is False          # 边界：不是 /static 目录
+    assert _is_public("/assetsfoo") is False        # 边界：不是 /assets 目录
+    assert _is_public("/staticdata/export") is False
 
 
 def _client(monkeypatch):
@@ -232,6 +241,37 @@ def test_business_route_with_wrong_token_returns_401(monkeypatch):
     r = client.get(
         "/api/safety/gate-stats",
         headers={"Authorization": f"Bearer {bad}"},
+    )
+    assert r.status_code == 401
+    assert r.json() == {"detail": "Unauthorized"}
+
+
+def test_expired_token_returns_401(monkeypatch):
+    """过期 token（签名有效，但 exp 早已过期）必须 401，与伪造 token 同等拒绝。
+
+    关键：用和签发方同一把 ``settings.JWT_SECRET`` 造一个 exp 在 30 分钟前的
+    JWT，签名是**真的有效**的——目的就是证明中间件走的是 ``decode_access_token``
+    的真实过期校验，而不是靠签名错把过期的也拦了（那样会掩盖 exp 漏洞）。
+    """
+    import time
+
+    from jose import jwt
+
+    client = _client(monkeypatch)
+    now = int(time.time())
+    payload = {
+        "sub": "1",
+        "iat": now - 3600,
+        "exp": now - 1800,  # 30 分钟前过期，签名仍有效
+    }
+    expired = jwt.encode(
+        payload,
+        cfg.settings.JWT_SECRET,
+        algorithm=cfg.settings.JWT_ALGORITHM,
+    )
+    r = client.get(
+        "/api/safety/gate-stats",
+        headers={"Authorization": f"Bearer {expired}"},
     )
     assert r.status_code == 401
     assert r.json() == {"detail": "Unauthorized"}
