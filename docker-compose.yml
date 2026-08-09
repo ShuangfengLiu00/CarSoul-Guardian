@@ -1,8 +1,14 @@
 # ====================================================
 # CarSoul Guardian - Docker Compose
 # Run:  docker compose up --build
+#
+# 端口约定（与 frontend/vite.config.ts 的 dev proxy 保持一致）：
+#   :8001  Guardian 后端（本项目）
+#   :8000  carModel 车辆世界模型引擎（独立仓库，见下方 carmodel 服务说明）
+#   :8080  前端 nginx（生产形态入口）
+# 历史上 compose 与 start-dev 脚本把后端写成 :8000，与 vite proxy 的 :8001
+# 错位，导致「照文档启动 → 前端调不通后端」。此处已对齐。
 # ====================================================
-version: "3.9"
 
 services:
   # ---------- PostgreSQL ----------
@@ -41,6 +47,11 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     container_name: carsoul_backend
+    # nginx.conf 里的上游主机名是 guardian-backend，这里加别名保持一致
+    networks:
+      default:
+        aliases:
+          - guardian-backend
     restart: unless-stopped
     environment:
       ENVIRONMENT: production
@@ -49,9 +60,13 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       MODEL_NAME: ${MODEL_NAME:-gpt-4o-mini}
-      CORS_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost:8080
+      # 经 nginx 反代后前端与 API 同源，理论上不需要 CORS；
+      # 保留 dev 端口便于本地前端直连调试。
+      CORS_ORIGINS: http://localhost:8080,http://localhost:5173,http://localhost:3000
+    # 不在此处覆盖 command：端口已由 Dockerfile.backend 的 CMD 固定为 8001，
+    # 两处都写会变成「同一件事两个真源」，下次改端口必漏一个。
     ports:
-      - "8000:8000"
+      - "8001:8001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,20 +76,41 @@ services:
       - ./backend:/app/backend
       - ./ai-agent:/app/ai-agent
 
-  # ---------- Frontend (Vite dev server / preview) ----------
+  # ---------- Frontend (nginx 静态托管 + 反向代理) ----------
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
     container_name: carsoul_frontend
     restart: unless-stopped
-    environment:
-      VITE_API_BASE_URL: http://localhost:8000
+    # 说明：这里没有 VITE_API_BASE_URL。
+    # VITE_* 变量是【构建期】注入的，写在 runtime environment 里不会生效——
+    # 这是原配置的一个无效项。现在前端一律走同源相对路径 /api，由 nginx 反代，
+    # 不需要也不应该配 API 绝对地址。
     ports:
-      - "5173:5173"
+      - "8080:80"
     depends_on:
       - backend
+
+  # ---------- carModel 车辆世界模型引擎（可选） ----------
+  # carModel 是【独立仓库】（本地路径 ../carModel），本 compose 无法构建它。
+  # 需先在 carModel 仓库执行：docker build -t carsoul/world-model .
+  # 然后用 profile 启动：docker compose --profile with-carmodel up
+  #
+  # 不启动它也不影响主站：nginx 用 resolver + 变量做延迟解析，
+  # carModel 缺席时只有 /docs、/openapi.json、/cockpit/、/carmodel/health
+  # 返回 502，前端主站与 Guardian API 照常可用。
+  carmodel:
+    image: carsoul/world-model
+    container_name: carsoul_world_model
+    profiles: ["with-carmodel"]
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - carmodel_data:/app/data
 
 volumes:
   postgres_data:
   redis_data:
+  carmodel_data:

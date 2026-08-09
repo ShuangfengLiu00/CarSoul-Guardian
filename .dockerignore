@@ -1,0 +1,61 @@
+# ====================================================
+# Docker 构建上下文排除清单
+# ====================================================
+# 构建上下文是仓库根目录（docker-compose.yml 里 context: .）。
+#
+# 为什么必须有这个文件：
+#   Dockerfile.frontend 里 `COPY frontend/ ./` 会把宿主机的 frontend/node_modules
+#   （约 437MB）一起拷进镜像，覆盖掉镜像内 `npm ci` 装好的依赖。而 esbuild /
+#   rollup 这类包含平台原生二进制的依赖，宿主机装的是 Windows 版，进到
+#   linux/amd64 容器里直接跑不起来 —— 表现为 build 阶段莫名其妙的
+#   "Cannot find module @esbuild/linux-x64" 之类报错。
+#   同时构建上下文体积会从几 MB 膨胀到近 500MB，每次 build 都要传一遍。
+
+# ---------- 依赖与构建产物 ----------
+**/node_modules
+**/dist
+**/build
+**/.vite
+**/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# ---------- Python ----------
+**/__pycache__
+**/*.py[cod]
+**/.venv
+**/venv
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/*.egg-info
+
+# ---------- 版本控制与 CI ----------
+.git
+.gitignore
+.github
+
+# ---------- 本地环境与密钥（绝不能进镜像） ----------
+# 必须用 ** 前缀：不带 ** 的模式只匹配上下文根层级，挡不住 frontend/.env.local。
+# 这条尤其重要 —— Vite 在【构建期】读取 frontend/.env.local，开发者本地的
+# VITE_API_BASE_URL 会被直接烘进生产 bundle，导致线上前端去打某个人的本机地址。
+**/.env
+**/.env.*
+!**/.env.example
+
+# ---------- 本地数据库与日志 ----------
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# ---------- 文档与 IDE ----------
+# 只排除仓库根的 docs/ 目录（不带 ** 的模式只匹配根层级）。
+# ⚠️ 绝对不要在这里加 `*.md` 通配排除：
+#    ai-agent/carsoul_agent/knowledge/automotive_docs/ 下的 9 篇 .md
+#    是 RAG 知识库的语料源，排掉它们会让 /knowledge 页面在镜像里检索为空
+#    —— 页面还在、还能点，但检索不到任何东西，属于典型的「假可用」。
+docs
+.vscode
+.idea
+.DS_Store
