@@ -5,7 +5,7 @@
   "type": "module",
   "description": "CarSoul Guardian - AI 汽车生命周期守护系统前端",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/kill-port.mjs 5173 && vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
