@@ -420,10 +420,10 @@ export default function VehicleSimulator() {
 
   return (
     <div>
-      <DemoBadge />
+      <DemoBadge level="L3" visible />
       <Space className="cs-dashboard__header" style={{ marginBottom: 4 }}>
         <Title level={3} style={{ margin: 0 }}>
-          车辆仿真可视化检修
+          车辆演示推演
         </Title>
         {phaseTag()}
       </Space>

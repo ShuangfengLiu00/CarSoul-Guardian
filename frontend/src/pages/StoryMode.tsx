@@ -1121,7 +1121,7 @@ export default function StoryMode() {
 
   return (
     <div className={kiosk ? "cs-kiosk" : undefined}>
-      <DemoBadge />
+      <DemoBadge level="L3" visible />
       {/* Header */}
       <Space style={{ justifyContent: "space-between", width: "100%", marginBottom: 12 }}>
         <Title level={3} style={{ margin: 0 }}>

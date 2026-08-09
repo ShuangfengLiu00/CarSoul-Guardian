@@ -39,7 +39,7 @@ export default function MemoryOcean() {
 
   return (
     <div className="holo-page" style={{ minHeight: "100vh", padding: 16, position: "relative" }}>
-      <DemoBadge />
+      <DemoBadge level="L3" visible />
       <div className="holo-scanline" style={{ position: "fixed", inset: 0, zIndex: 0 }} />
 
       {/* Wave background */}

@@ -83,7 +83,8 @@ export default function TimelineDemo() {
 
   return (
     <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 16px 48px" }}>
-      <DemoBadge />
+      {/* 本页是恒定 demo（后端 demo_mode 始终为 true，返回确定性剧本数据），标注属实 */}
+      <DemoBadge level="L2b" visible />
       {/* ===== Header ===== */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <Space>
@@ -92,7 +93,7 @@ export default function TimelineDemo() {
           </Title>
           <Text type="secondary">{data.vehicle.name} · {data.vehicle.brand} {data.vehicle.model}</Text>
         </Space>
-        <DemoBadge inline />
+        <DemoBadge level="L2b" visible inline />
       </div>
 
       {/* ===== Year Slider ===== */}
