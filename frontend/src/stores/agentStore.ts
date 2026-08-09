@@ -7,21 +7,47 @@ export interface ChatMessage {
   content: string;
   createdAt: number;
   closed_loop?: ClosedLoop | null;
-  /** 降级详情；非空即表示该条回答未经大模型转述 */
+  /**
+   * 链路降级详情。**非空只代表链路不可用，不代表这条回答降级了。**
+   * 判断这条回答是否真降级只能用 `degraded?.affects_this_turn === true`。
+   */
   degraded?: AgentDegraded | null;
   citations?: AgentCitation[];
   llm_used?: boolean;
   compliance_refused?: boolean;
+  /** 非空即代表合规闸门介入过（含不拒答的 safety_critical） */
+  compliance_category?: string | null;
+  /** refuse / safety_disclaim / null */
+  compliance_action?: string | null;
+  safety_scrubbed?: boolean;
+  safety_scrub_hits?: unknown[];
   engine?: string;
+}
+
+/** 最近一轮观测到的链路事实。三个字段互相正交，任何一个都不许推断另一个。 */
+export interface LinkFacts {
+  llmAvailable: boolean;
+  llmUsed: boolean;
+  /** 本轮回答是否**真的**因链路不可用而受损（确定性路径为 false） */
+  affectsThisTurn: boolean;
+  reason?: string | null;
+  detail?: string | null;
 }
 
 interface AgentState {
   messages: ChatMessage[];
   sessionId: string | null;
-  /** "degraded" = 有应答但未经大模型转述，必须与 active 区分呈现 */
+  /**
+   * "degraded" = 未证明"链路可用且本轮真的调了大模型"。
+   * 注意它是**链路层**判定（llm_available && llm_used），不等于"这轮回答变差了"——
+   * 呈现文案必须结合 linkFacts.affectsThisTurn 才不会把合规拒答说成质量下降。
+   */
   status: "idle" | "thinking" | "active" | "degraded" | "error";
+  /** null = 本会话还没有过任何一轮真实观测 */
+  linkFacts: LinkFacts | null;
   pushMessage: (msg: Omit<ChatMessage, "id" | "createdAt">) => void;
   setStatus: (s: AgentState["status"]) => void;
+  setLinkFacts: (f: LinkFacts | null) => void;
   setSessionId: (id: string | null) => void;
   reset: () => void;
 }
@@ -32,11 +58,13 @@ export const useAgentStore = create<AgentState>((set) => ({
   messages: [],
   sessionId: null,
   status: "idle",
+  linkFacts: null,
   pushMessage: (msg) =>
     set((s) => ({
       messages: [...s.messages, { ...msg, id: uid(), createdAt: Date.now() }],
     })),
   setStatus: (status) => set({ status }),
+  setLinkFacts: (linkFacts) => set({ linkFacts }),
   setSessionId: (sessionId) => set({ sessionId }),
-  reset: () => set({ messages: [], sessionId: null, status: "idle" }),
+  reset: () => set({ messages: [], sessionId: null, status: "idle", linkFacts: null }),
 }));

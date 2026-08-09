@@ -233,36 +233,63 @@ export default function Dashboard() {
   // usingDemo 不再参与判定——演示数据由右上角 DemoBadge 单独标注，
   // 不允许把降级洗成"运行中"。
   const rawAgentStatus = overview?.agent_status ?? "unknown";
+  // agent_link 给出两个正交事实（链路是否可用 / 最近一轮回答是否真受损）。
+  // 只有 agent_status 三档时，UI 只能把"链路挂了但这轮是合规拒答"也说成
+  // "降级运行"——那是把一次完全正常的合规拒答说成质量下降。
+  const link = overview?.agent_link ?? null;
   const agentPresentation: {
     label: string;
     color: string;
     badgeStatus: "success" | "warning" | "default";
     badgeText: string;
     tagColor: string;
-  } =
-    rawAgentStatus === "active"
-      ? {
-          label: "运行中",
-          color: "#3b82f6",
-          badgeStatus: "success",
-          badgeText: "守护引擎在线",
-          tagColor: "green",
-        }
-      : rawAgentStatus === "degraded"
-        ? {
-            label: "降级运行",
-            color: "#f59e0b",
-            badgeStatus: "warning",
-            badgeText: "降级模式（未经大模型）",
-            tagColor: "orange",
-          }
-        : {
-            label: "待机",
-            color: "#8c8c8c",
-            badgeStatus: "default",
-            badgeText: "守护引擎状态未知",
-            tagColor: "default",
-          };
+  } = (() => {
+    if (rawAgentStatus === "active") {
+      return {
+        label: "运行中",
+        color: "#3b82f6",
+        badgeStatus: "success" as const,
+        badgeText: "守护引擎在线",
+        tagColor: "green",
+      };
+    }
+    if (rawAgentStatus !== "degraded") {
+      return {
+        label: "待机",
+        color: "#8c8c8c",
+        badgeStatus: "default" as const,
+        badgeText: "守护引擎状态未知（尚未观测到任何一轮对话）",
+        tagColor: "default",
+      };
+    }
+    // 以下都是 degraded：再按"本轮是否真受损 / 链路是否可用"细分。
+    // 拿不到 agent_link 时取最保守的一档（未证明没受损即按受损处理）。
+    if (!link || link.affects_last_turn) {
+      return {
+        label: "降级运行",
+        color: "#f59e0b",
+        badgeStatus: "warning" as const,
+        badgeText: "降级模式（最近一轮回答未经大模型转述）",
+        tagColor: "orange",
+      };
+    }
+    if (!link.llm_available) {
+      return {
+        label: "链路不可用",
+        color: "#f59e0b",
+        badgeStatus: "warning" as const,
+        badgeText: "大模型链路不可用；最近一轮为确定性路径，回答未受影响",
+        tagColor: "orange",
+      };
+    }
+    return {
+      label: "确定性应答",
+      color: "#8c8c8c",
+      badgeStatus: "default" as const,
+      badgeText: "链路可用；最近一轮按设计未调用大模型（合规闸门 / 反问 / 超纲声明）",
+      tagColor: "default",
+    };
+  })();
 
   return (
     <div className="cs-dashboard">

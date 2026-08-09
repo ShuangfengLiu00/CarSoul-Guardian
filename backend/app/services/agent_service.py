@@ -51,6 +51,23 @@ def _derive_status(llm_available: bool, llm_used: bool) -> str:
     return "active" if (llm_available and llm_used) else "degraded"
 
 
+def affects_this_turn(degraded: Any) -> bool:
+    """本轮回答是否**真的**因大模型链路不可用而受损。
+
+    判据只认 ``degraded["affects_this_turn"] is True``，**不是** "degraded 非空"。
+    这两者是 carModel 明确定义的两个正交事实（carModel api/main.py:499-520）：
+
+      · ``degraded`` 非空  ⟺ ``llm_available is False``  —— 链路层事实
+      · ``affects_this_turn`` ⟺ 本轮回答质量真的退化了    —— 回答层事实
+
+    合规拒答 / OOD 声明 / 信息不足反问属于确定性路径，本就不经大模型，
+    链路挂了也不改变它们的输出，所以 ``affects_this_turn=false``。
+    用"degraded 非空"判降级会把一次**正常的合规拒答**显示成"降级模式" ——
+    那是凭空制造一个不存在的缺陷，与硬编码 active 同属失真，方向相反而已。
+    """
+    return isinstance(degraded, dict) and degraded.get("affects_this_turn") is True
+
+
 # ---- 最近一次真实观测到的大模型链路状态 ----
 # Dashboard 的"AI 守护状态"必须反映**真实观测**，而不是硬编码常量。
 # 在任何一轮对话真正发生之前，状态是 "unknown" —— 未观测即不表态，
@@ -61,12 +78,24 @@ _last_link_state: dict[str, Any] = {
     "llm_used": False,
     "engine": "unknown",
     "degraded": None,
+    "affects_last_turn": False,
     "observed_at": None,
 }
 
 
 def _record_link_state(payload: dict) -> dict:
-    """每轮对话后记录真实链路状态，供 /api/health/overview 如实上报。"""
+    """每轮对话后记录真实链路状态，供 /api/health/overview 如实上报。
+
+    口径（两个正交事实分开记，不许互相掩盖）：
+
+      · ``agent_status`` 仍由 ``llm_available and llm_used`` 推导。
+        因此**确定性路径的轮次照样计入"链路不可用"的观测** —— 合规拒答那一轮
+        链路是真的挂着的，Dashboard 必须如实反映，不能因为"这轮回答没受影响"
+        就把链路洗成在线。
+      · ``affects_last_turn`` 单独记"最近一轮的回答质量是否真的受损"。
+        Dashboard 用它决定措辞是"降级运行"还是"链路不可用但本轮未受影响"，
+        避免把一次正常的合规拒答说成回答质量下降。
+    """
     from datetime import datetime, timezone
 
     _last_link_state.update(
@@ -76,6 +105,7 @@ def _record_link_state(payload: dict) -> dict:
             "llm_used": bool(payload.get("llm_used", False)),
             "engine": payload.get("engine", "unknown"),
             "degraded": payload.get("degraded"),
+            "affects_last_turn": affects_this_turn(payload.get("degraded")),
             "observed_at": datetime.now(timezone.utc).isoformat(),
         }
     )
@@ -88,19 +118,42 @@ def get_last_link_state() -> dict[str, Any]:
 
 
 def _from_carmodel(result: dict, session_id: str | None) -> dict:
-    """Map carModel /agent/chat 的 20 字段响应到 Guardian 响应契约。"""
+    """Map carModel /agent/chat 的响应到 Guardian 响应契约。
+
+    上游契约（carModel api/main.py:446-464 的出口不变式，有服务端自检兜底）：
+    ``llm_available is False`` ⟹ ``degraded`` 必非空、带 ``reason``、带布尔
+    ``affects_this_turn``。因此 Guardian **不再**替上游补
+    ``llm_unavailable_upstream_unspecified`` —— 那层兜底是上游把"链路不可用"
+    这个事实吞掉时的应急补丁，上游修好了就该撤，留着只会掩盖新的上游回归。
+    """
     llm_available = bool(result.get("llm_available", False))
     llm_used = bool(result.get("llm_used", False))
 
     degraded = result.get("degraded")
-    # carModel 有时在 llm_available=false 时仍返回 degraded=null（compose 规则
-    # 路由成功应答的场景）。此处不替上游"补一个好看的理由"，但也不允许降级
-    # 事实凭空消失：显式标注理由未知，由 UI 如实呈现。
-    if not llm_available and not isinstance(degraded, dict):
+    if isinstance(degraded, dict) and not isinstance(degraded.get("affects_this_turn"), bool):
+        # 只有对面是**旧版 carModel**（或契约被改坏）才会走到这里。
+        # 取"本轮受损"这一侧：没证明本轮没受影响，就不许当作没受影响 ——
+        # 这是"未证明可用即视为不可用"落在本字段上的形态，不是替上游编理由。
+        logger.warning(
+            "carModel degraded 缺少 affects_this_turn（疑似旧版上游），按本轮受损保守处理: %s",
+            degraded.get("reason"),
+        )
+        detail = str(degraded.get("detail") or "").strip()
         degraded = {
-            "reason": "llm_unavailable_upstream_unspecified",
-            "detail": "carModel 报告 llm_available=false 但未提供 degraded.reason",
+            **degraded,
+            "affects_this_turn": True,
+            "detail": (
+                f"{detail}（注：上游未给出 affects_this_turn，"
+                "Guardian 按'本轮受损'保守处理）"
+            ).strip(),
         }
+    elif degraded is None and not llm_available:
+        # 上游违约。**不编造** degraded —— 理由是上游才知道的事，Guardian 编一个
+        # 只是把违约藏起来。但事实不会丢：agent_status 由 llm_available/llm_used
+        # 推导，此处必为 degraded，UI 与 Dashboard 照样不会变绿。
+        logger.error(
+            "carModel 违反降级契约：llm_available=false 但 degraded=null（上游版本过旧？）"
+        )
 
     return {
         "answer": str(result.get("answer", "")).strip(),
@@ -114,6 +167,15 @@ def _from_carmodel(result: dict, session_id: str | None) -> dict:
         "citations": result.get("citations") or [],
         "compliance_refused": bool(result.get("compliance_refused", False)),
         "compliance_category": result.get("compliance_category"),
+        # 闸门处置动作：refuse / safety_disclaim / None。
+        # safety_critical 类走 safety_disclaim（免责 + 导向专业检修），它的
+        # compliance_refused 是 **False** —— 判断"闸门是否介入过"只能看
+        # compliance_category 非空，只看 refused 会漏掉一整类。
+        "compliance_action": result.get("compliance_action"),
+        # 编造安全数值红线的后置清洗结果。false 只表示"未命中这三类模式"，
+        # 不等于"答案已被证明安全"，不要当成安全背书往上加戏。
+        "safety_scrubbed": bool(result.get("safety_scrubbed", False)),
+        "safety_scrub_hits": result.get("safety_scrub_hits") or [],
         "model_version": result.get("model_version"),
         "engine": "carmodel_agent_chat",
     }
@@ -175,10 +237,20 @@ async def chat(
                 "degraded": {
                     "reason": "carmodel_agent_chat_unreachable",
                     "detail": f"上游 {upstream_err}，已降级到本地规则专家团（无大模型转述）",
+                    "impact": "回答由本地规则生成，未经大模型转述，覆盖面与表达质量均低于正常链路。",
+                    # 与 carModel 同一口径：这条路径本该由大模型转述却没转述，
+                    # 本轮回答**确实**受损，所以是 True（合规拒答那种确定性
+                    # 路径才是 False）。答案里也已加了可见的降级前缀。
+                    "affects_this_turn": True,
                 },
                 "citations": result.get("citations") or [],
                 "compliance_refused": bool(result.get("compliance_refused", False)),
                 "compliance_category": result.get("compliance_category"),
+                "compliance_action": result.get("compliance_action"),
+                # 本地规则专家团没有 carModel 那套安全数值后置清洗，
+                # 如实报 false / 空表，不假装做过这道工序。
+                "safety_scrubbed": False,
+                "safety_scrub_hits": [],
                 "model_version": result.get("model_version"),
                 "engine": "local_agent",
             })
@@ -233,10 +305,16 @@ def _fallback_respond(
         "degraded": {
             "reason": "no_llm_backend_configured",
             "detail": f"carModel 不可达（{upstream_err}）且本地规则专家团不可用，已使用离线兜底应答",
+            "impact": "回答为固定模板，既无大模型转述也无真实车况推理，仅作占位。",
+            # 离线兜底一定是真降级。
+            "affects_this_turn": True,
         },
         "citations": [],
         "compliance_refused": False,
         "compliance_category": None,
+        "compliance_action": None,
+        "safety_scrubbed": False,
+        "safety_scrub_hits": [],
         "model_version": None,
         "engine": "offline_fallback",
     }

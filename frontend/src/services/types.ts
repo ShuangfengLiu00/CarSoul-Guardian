@@ -718,6 +718,17 @@ export interface AgentDegraded {
   reason: string;
   detail?: string;
   impact?: string;
+  /**
+   * 本轮回答是否**真的**因大模型链路不可用而受损。
+   *
+   * 与"degraded 非空"是两个正交事实：degraded 非空只说明**链路**不可用
+   * （llm_available=false），而合规拒答 / OOD 声明 / 信息不足反问这些确定性
+   * 路径本就不经大模型，链路挂了它们的输出也不变 → affects_this_turn=false。
+   *
+   * **判降级只能用 `degraded?.affects_this_turn === true`**。用"degraded 非空"
+   * 会把一次正常的合规拒答显示成「降级模式」，那是凭空制造一个不存在的缺陷。
+   */
+  affects_this_turn?: boolean;
   [k: string]: unknown;
 }
 
@@ -734,8 +745,23 @@ export interface AgentChatResponse {
   llm_used?: boolean;
   degraded?: AgentDegraded | null;
   citations?: AgentCitation[];
+  /** 是否被合规闸门**拒答**。safety_critical 类不拒答，此值为 false。 */
   compliance_refused?: boolean;
+  /**
+   * 合规闸门命中类别：geo / identity / data_fraud / repair_mislead / safety_critical。
+   * **非空即代表闸门介入过** —— 判断"闸门是否生效"只能看这个，
+   * 只看 compliance_refused 会漏掉 safety_critical 一整类。
+   */
   compliance_category?: string | null;
+  /** refuse=直接拒答；safety_disclaim=免责并导向专业检修（不是拒答）；null=未命中闸门 */
+  compliance_action?: string | null;
+  /**
+   * 答案中是否检出并移除了无工具证据的安全结论（安全时限/磨损到极限/立即停驶）。
+   * false 仅表示未命中这三类模式，**不等于**答案已被证明安全。
+   */
+  safety_scrubbed?: boolean;
+  /** 被移除的编造安全结论片段，便于溯源 */
+  safety_scrub_hits?: unknown[];
   model_version?: string | null;
   /** carmodel_agent_chat / local_agent / offline_fallback */
   engine?: string;
@@ -756,6 +782,22 @@ export interface HealthDataStatus {
   detail: string;
 }
 
+/**
+ * 最近一次真实观测到的大模型链路状态。
+ * agent_status 只有三档，分不清"链路挂了导致回答变差"和"链路挂了但这轮是
+ * 合规拒答、回答本就不该经大模型"。这里把两个正交事实分开给 UI。
+ */
+export interface AgentLinkState {
+  llm_available: boolean;
+  llm_used: boolean;
+  /** 最近一轮回答是否**真的**受损（= degraded.affects_this_turn），确定性路径为 false */
+  affects_last_turn: boolean;
+  engine: string;
+  reason?: string | null;
+  /** 为 null/缺省表示尚未发生过任何一轮对话 */
+  observed_at?: string | null;
+}
+
 export interface HealthOverview {
   /**
    * 0-100 综合健康分。**null = 取不到真实车况**。
@@ -766,6 +808,8 @@ export interface HealthOverview {
   /** 健康分的来源与口径，便于用户判断这个数字可不可信 */
   health_score_basis?: string | null;
   agent_status: string;
+  /** null = 尚未观测过任何一轮对话（与"观测到不可用"不是一回事） */
+  agent_link?: AgentLinkState | null;
   recent_alerts: AlertItem[];
   vehicle_id?: string | null;
   /** 车况数据在 carModel 侧的观测时间 */

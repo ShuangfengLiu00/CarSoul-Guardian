@@ -33,7 +33,7 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 export default function AgentChat() {
-  const { messages, status, send, reset } = useAgent();
+  const { messages, status, linkFacts, send, reset } = useAgent();
   const sessionId = useAgentStore((s) => s.sessionId);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -104,20 +104,48 @@ export default function AgentChat() {
     if (!v) cancelSpeak();
   };
 
+  // status="degraded" 只说明"未证明链路可用且本轮真的调了大模型"，它**不等于**
+  // "这轮回答变差了"。两个正交事实要分开说：
+  //   · linkFacts.llmAvailable   —— 链路当前是否可用
+  //   · linkFacts.affectsThisTurn —— 本轮回答是否真的因此受损
+  // 合规拒答 / 信息不足反问 / 超纲声明是确定性路径，本就不经大模型，链路挂了
+  // 它们的输出也一模一样。给这类回答挂「降级模式」是凭空制造一个不存在的缺陷 ——
+  // 与历史上把失败硬编码成「守护在线」同属失真，只是方向相反。
   const statusTag = () => {
     switch (status) {
       case "thinking":
         return <Tag color="processing">思考中…</Tag>;
       case "active":
         return <Tag color="success">守护在线</Tag>;
-      case "degraded":
-        return (
-          <Tooltip title="本轮回答未经大模型转述，由确定性规则/模板生成">
-            <Tag color="warning">降级模式</Tag>
-          </Tooltip>
-        );
       case "error":
         return <Tag color="error">连接异常</Tag>;
+      case "degraded": {
+        // 拿不到链路事实时取"受损"这一侧：没证明没受损，就不许当作没受损。
+        if (!linkFacts || linkFacts.affectsThisTurn) {
+          return (
+            <Tooltip title={linkFacts?.detail || "本轮回答未经大模型转述，由确定性规则/模板生成"}>
+              <Tag color="warning">降级模式</Tag>
+            </Tooltip>
+          );
+        }
+        if (!linkFacts.llmAvailable) {
+          return (
+            <Tooltip
+              title={
+                linkFacts.detail ||
+                "大模型链路当前不可用；但本轮走的是确定性路径（合规闸门 / 信息不足反问 / 超纲声明），回答内容不受链路状态影响。"
+              }
+            >
+              <Tag color="default">链路不可用 · 本轮未受影响</Tag>
+            </Tooltip>
+          );
+        }
+        return (
+          <Tooltip title="大模型链路可用，但本轮按设计走确定性路径（合规闸门 / 信息不足反问 / 超纲声明），未调用大模型。">
+            <Tag color="default">本轮未调用大模型</Tag>
+          </Tooltip>
+        );
+      }
       default:
         return <Tag color="default">待命</Tag>;
     }
@@ -209,7 +237,18 @@ export default function AgentChat() {
               </div>
             </div>
           ) : (
-            messages.map((m) => (
+            messages.map((m) => {
+              // 本轮回答是否**真的**降级：只认 affects_this_turn === true。
+              // 绝不能写成 `Boolean(m.degraded)` —— degraded 非空只代表链路不可用，
+              // 合规拒答那一轮同样带 degraded，但它的回答一点没受影响。
+              const turnDegraded = m.degraded?.affects_this_turn === true;
+              // 闸门是否介入过：看 compliance_category 非空。
+              // safety_critical 类的处置是"免责 + 导向专业检修"，compliance_refused
+              // 是 false，只看 refused 会把这一整类当成没发生过。
+              const gateEngaged = Boolean(m.compliance_category);
+              const refused = Boolean(m.compliance_refused);
+              const disclaimed = gateEngaged && !refused;
+              return (
               <div
                 key={m.id}
                 className="cs-msg-row"
@@ -230,19 +269,47 @@ export default function AgentChat() {
                   icon={m.role === "user" ? <UserOutlined /> : <RobotOutlined />}
                 />
                 <div className="cs-msg-body" style={{ maxWidth: "80%" }}>
-                  {/* 降级 / 合规拒答必须在气泡上可见，且与普通回答样式有别 */}
-                  {m.role === "assistant" && m.compliance_refused && (
+                  {/* 降级 / 合规处置 / 安全清洗都必须在气泡上可见，且互不冒充 */}
+                  {m.role === "assistant" && refused && (
                     <div style={{ marginBottom: 6 }}>
-                      <Tag color="red">合规拒答</Tag>
+                      <Tooltip title={`合规闸门类别：${m.compliance_category}`}>
+                        <Tag color="red">合规拒答</Tag>
+                      </Tooltip>
                     </div>
                   )}
-                  {m.role === "assistant" && !m.compliance_refused && m.degraded && (
+                  {m.role === "assistant" && disclaimed && (
                     <div style={{ marginBottom: 6 }}>
                       <Tooltip
                         title={
-                          m.degraded.detail ||
-                          `降级原因：${m.degraded.reason}` ||
-                          "未经大模型转述"
+                          `合规闸门类别：${m.compliance_category}` +
+                          "；处置为免责声明并导向专业检修 —— 这**不是**拒答，" +
+                          "问题已回答，只是不替代专业检修下安全结论。"
+                        }
+                      >
+                        <Tag color="orange">安全免责 · 建议专业检修</Tag>
+                      </Tooltip>
+                    </div>
+                  )}
+                  {m.role === "assistant" && m.safety_scrubbed && (
+                    <div style={{ marginBottom: 6 }}>
+                      <Tooltip
+                        title={
+                          "答案中出现了无工具证据支撑的安全结论（安全时限 / 磨损到极限 / 立即停驶），已就地移除。" +
+                          (m.safety_scrub_hits?.length
+                            ? `\n被移除片段：${m.safety_scrub_hits.map((h) => String(h)).join(" / ")}`
+                            : "")
+                        }
+                      >
+                        <Tag color="volcano">已移除无证据的安全结论</Tag>
+                      </Tooltip>
+                    </div>
+                  )}
+                  {m.role === "assistant" && turnDegraded && (
+                    <div style={{ marginBottom: 6 }}>
+                      <Tooltip
+                        title={
+                          m.degraded?.detail ||
+                          `降级原因：${m.degraded?.reason ?? "未知"}`
                         }
                       >
                         <Tag color="warning">
@@ -255,17 +322,19 @@ export default function AgentChat() {
                   <div
                     className="cs-bubble"
                     style={{
+                      // 底色同样只认 turnDegraded，不认 "degraded 非空"：
+                      // 合规拒答/反问是正常回答，不该被涂成降级的黄底。
                       background:
                         m.role === "user"
                           ? "#eef2ff"
-                          : m.compliance_refused
+                          : refused
                             ? "#fff1f0"
-                            : m.degraded
+                            : turnDegraded
                               ? "#fffbe6"
                               : "#fff",
-                      border: m.compliance_refused
+                      border: refused
                         ? "1px solid #ffa39e"
-                        : m.role === "assistant" && m.degraded
+                        : m.role === "assistant" && turnDegraded
                           ? "1px dashed #f0c36d"
                           : "1px solid #eef0f4",
                       borderRadius: 14,
@@ -297,7 +366,8 @@ export default function AgentChat() {
                   )}
                 </div>
               </div>
-            ))
+              );
+            })
           )}
           {status === "thinking" && (
             <div style={{ display: "flex", gap: 12, marginBottom: 18 }}>

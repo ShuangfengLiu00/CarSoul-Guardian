@@ -21,7 +21,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Query
 
 from app.core.config import settings
-from app.schemas.health import AlertItem, DataStatus, HealthOverview
+from app.schemas.health import AgentLinkState, AlertItem, DataStatus, HealthOverview
 from app.services import agent_service, carsoul_world
 
 router = APIRouter()
@@ -146,6 +146,29 @@ def _build_alerts(state: dict) -> list[AlertItem]:
     return alerts
 
 
+def _agent_link() -> tuple[str, AgentLinkState | None]:
+    """把 agent_service 记录的真实链路观测翻译成对外契约。
+
+    返回 ``(agent_status, agent_link)``。从未观测过时 agent_link 为 None ——
+    "没观测过"和"观测到链路不可用"是两回事，不许合并成一个 degraded 糊过去。
+    """
+    st = agent_service.get_last_link_state()
+    status = st.get("agent_status", "unknown")
+    if not st.get("observed_at"):
+        return status, None
+    degraded = st.get("degraded")
+    return status, AgentLinkState(
+        llm_available=bool(st.get("llm_available", False)),
+        llm_used=bool(st.get("llm_used", False)),
+        # 由 agent_service 按 degraded.affects_this_turn 统一判定，
+        # 这里不重新发明判据，避免两处口径漂移。
+        affects_last_turn=bool(st.get("affects_last_turn", False)),
+        engine=str(st.get("engine") or "unknown"),
+        reason=(degraded or {}).get("reason") if isinstance(degraded, dict) else None,
+        observed_at=st.get("observed_at"),
+    )
+
+
 @router.get("/overview", response_model=HealthOverview)
 async def overview(
     vehicle_id: str | None = Query(
@@ -157,7 +180,9 @@ async def overview(
     # agent_status 曾硬编码 "active" —— 那是 Dashboard 死绿灯的真正源头。
     # 现如实上报**最近一次真实观测到**的大模型链路状态；在任何一轮对话真正
     # 发生之前为 "unknown"（未观测即不表态）。
-    agent_status = agent_service.get_last_link_state()["agent_status"]
+    # agent_link 额外给出"链路是否可用"与"最近一轮回答是否真的受损"两个正交事实，
+    # 供 UI 区分"降级运行"与"链路不可用但本轮是合规拒答、回答未受影响"。
+    agent_status, agent_link = _agent_link()
 
     # 调用方没指定就用配置里的缺省车（默认留空 = 不猜）。
     resolved_id = (vehicle_id or settings.CARSOUL_WORLD_DEFAULT_VEHICLE_ID or "").strip()
@@ -166,6 +191,7 @@ async def overview(
     if not resolved_id:
         return HealthOverview(
             agent_status=agent_status,
+            agent_link=agent_link,
             data_status=DataStatus(
                 code="no_vehicle_selected",
                 detail="未指定 vehicle_id 且未配置 CARSOUL_WORLD_DEFAULT_VEHICLE_ID，"
@@ -181,6 +207,7 @@ async def overview(
         detail = str((state or {}).get("detail", ""))[:200]
         return HealthOverview(
             agent_status=agent_status,
+            agent_link=agent_link,
             vehicle_id=vehicle_id,
             data_status=DataStatus(
                 code="carmodel_unavailable",
@@ -195,6 +222,7 @@ async def overview(
     if not isinstance(raw_score, (int, float)):
         return HealthOverview(
             agent_status=agent_status,
+            agent_link=agent_link,
             vehicle_id=vehicle_id,
             as_of=state.get("as_of"),
             recent_alerts=alerts,
@@ -219,6 +247,7 @@ async def overview(
             "（口径 = clamp((SOH−0.60)/0.40, 0, 1)，见 carModel encoder/state_encoder.py:153）"
         ),
         agent_status=agent_status,
+        agent_link=agent_link,
         recent_alerts=alerts,
         vehicle_id=vehicle_id,
         as_of=state.get("as_of"),

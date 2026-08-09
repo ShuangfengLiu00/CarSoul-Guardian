@@ -27,7 +27,7 @@ from app.schemas.fault_log import (
     FaultLogOut,
     FaultLogUpdate,
 )
-from app.schemas.health import HealthOverview
+from app.schemas.health import AgentLinkState, HealthOverview
 from app.schemas.health_snapshot import (
     HealthItemCreate,
     HealthItemOut,
@@ -91,6 +91,7 @@ __all__ = [
     "AgentChatRequest",
     "AgentChatResponse",
     # Health overview
+    "AgentLinkState",
     "HealthOverview",
     # User
     "Token",
