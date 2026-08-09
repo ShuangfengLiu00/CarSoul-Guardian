@@ -15,10 +15,10 @@ import httpx
 from app.core.config import settings
 
 
-async def _request(method: str, path: str, *, json=None, params=None):
+async def _request(method: str, path: str, *, json=None, params=None, timeout: float = 30.0):
     try:
         async with httpx.AsyncClient(
-            base_url=settings.CARSOUL_WORLD_API_URL, timeout=30.0
+            base_url=settings.CARSOUL_WORLD_API_URL, timeout=timeout
         ) as client:
             resp = await client.request(method, path, json=json, params=params)
             resp.raise_for_status()
@@ -73,4 +73,39 @@ async def predict_failure(vehicle_id: str, horizon_days: int = 90):
 async def simulate_vehicles(count: int = 10, seed: int = 42):
     return await _request(
         "POST", "/vehicle/simulate", json={"count": count, "seed": seed}
+    )
+
+
+async def agent_chat(
+    query: str,
+    *,
+    role: str = "owner",
+    vehicle_id: str | None = None,
+    session_id: str | None = None,
+    mode: str = "compose",
+):
+    """Forward a natural-language question to carModel ``POST /agent/chat``.
+
+    This is the ONLY LLM-backed conversational entrypoint in the whole system:
+    it is the single path that carries RAG retrieval, forced citations, the
+    compliance gate and honest-degradation discipline. Guardian must never
+    answer a user question from local rules while pretending it came from here.
+
+    Signature mirrors carModel's ``AgentChatReq``. Timeout is 60s (not the
+    default 30s) because RAG + LLM composition is materially slower than the
+    numeric prediction endpoints.
+
+    Returns carModel's 20-field response dict, or ``{"error": ...}`` on failure.
+    """
+    return await _request(
+        "POST",
+        "/agent/chat",
+        json={
+            "query": query,
+            "role": role,
+            "vehicle_id": vehicle_id,
+            "session_id": session_id,
+            "mode": mode,
+        },
+        timeout=60.0,
     )

@@ -14,8 +14,8 @@ router = APIRouter()
 
 
 @router.post("/chat", response_model=AgentChatResponse)
-def chat(payload: AgentChatRequest) -> AgentChatResponse:
-    result = agent_service.chat(
+async def chat(payload: AgentChatRequest) -> AgentChatResponse:
+    result = await agent_service.chat(
         user=payload.user,
         message=payload.message,
         session_id=payload.session_id,

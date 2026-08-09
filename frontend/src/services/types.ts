@@ -702,12 +702,43 @@ export interface TripReport {
   verdict: string;
 }
 
+export interface AgentCitation {
+  id?: string;
+  title?: string;
+  source?: string;
+  source_type?: string;
+  confidence?: string;
+  needs_verification?: boolean;
+  category?: string;
+  score?: number;
+  [k: string]: unknown;
+}
+
+export interface AgentDegraded {
+  reason: string;
+  detail?: string;
+  impact?: string;
+  [k: string]: unknown;
+}
+
 export interface AgentChatResponse {
   answer: string;
+  /** "active" 仅当 llm_available && llm_used，其余一律 "degraded"。上游必填。 */
   agent_status: string;
   session_id?: string;
   agent_name: string;
   closed_loop?: ClosedLoop | null;
+  /** 本轮 LLM 链路是否真的可用（不是"环境变量配没配"） */
+  llm_available?: boolean;
+  /** 本轮是否真的调用了 LLM。与 llm_available 正交，不可合并 */
+  llm_used?: boolean;
+  degraded?: AgentDegraded | null;
+  citations?: AgentCitation[];
+  compliance_refused?: boolean;
+  compliance_category?: string | null;
+  model_version?: string | null;
+  /** carmodel_agent_chat / local_agent / offline_fallback */
+  engine?: string;
 }
 
 export interface AlertItem {

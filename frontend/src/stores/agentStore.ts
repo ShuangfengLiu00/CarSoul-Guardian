@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ClosedLoop } from "@/services/types";
+import type { AgentCitation, AgentDegraded, ClosedLoop } from "@/services/types";
 
 export interface ChatMessage {
   id: string;
@@ -7,12 +7,19 @@ export interface ChatMessage {
   content: string;
   createdAt: number;
   closed_loop?: ClosedLoop | null;
+  /** 降级详情；非空即表示该条回答未经大模型转述 */
+  degraded?: AgentDegraded | null;
+  citations?: AgentCitation[];
+  llm_used?: boolean;
+  compliance_refused?: boolean;
+  engine?: string;
 }
 
 interface AgentState {
   messages: ChatMessage[];
   sessionId: string | null;
-  status: "idle" | "thinking" | "active" | "error";
+  /** "degraded" = 有应答但未经大模型转述，必须与 active 区分呈现 */
+  status: "idle" | "thinking" | "active" | "degraded" | "error";
   pushMessage: (msg: Omit<ChatMessage, "id" | "createdAt">) => void;
   setStatus: (s: AgentState["status"]) => void;
   setSessionId: (id: string | null) => void;

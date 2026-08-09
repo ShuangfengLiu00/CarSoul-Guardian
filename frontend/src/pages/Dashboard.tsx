@@ -217,6 +217,43 @@ export default function Dashboard() {
   const recentAlerts = overview?.recent_alerts ?? [];
   const alertsForList = archive?.alerts ?? [];
 
+  // AI 守护状态的唯一呈现来源。
+  // 诚实降级原则：只有后端明确报 "active" 才显示运行中；"degraded" 必须
+  // 可见地标成降级；拿不到值一律 unknown/待机，绝不默认变绿。
+  // usingDemo 不再参与判定——演示数据由右上角 DemoBadge 单独标注，
+  // 不允许把降级洗成"运行中"。
+  const rawAgentStatus = overview?.agent_status ?? "unknown";
+  const agentPresentation: {
+    label: string;
+    color: string;
+    badgeStatus: "success" | "warning" | "default";
+    badgeText: string;
+    tagColor: string;
+  } =
+    rawAgentStatus === "active"
+      ? {
+          label: "运行中",
+          color: "#3b82f6",
+          badgeStatus: "success",
+          badgeText: "守护引擎在线",
+          tagColor: "green",
+        }
+      : rawAgentStatus === "degraded"
+        ? {
+            label: "降级运行",
+            color: "#f59e0b",
+            badgeStatus: "warning",
+            badgeText: "降级模式（未经大模型）",
+            tagColor: "orange",
+          }
+        : {
+            label: "待机",
+            color: "#8c8c8c",
+            badgeStatus: "default",
+            badgeText: "守护引擎状态未知",
+            tagColor: "default",
+          };
+
   return (
     <div className="cs-dashboard">
       {/* 演示模式固定角标（右上角） */}
@@ -261,11 +298,15 @@ export default function Dashboard() {
           <Card className="cs-card cs-stat-card">
             <Statistic
               title="AI 守护状态"
-              value={overview?.agent_status === "active" || usingDemo ? "运行中" : "待机"}
-              prefix={<RobotOutlined style={{ color: "#3b82f6" }} />}
-              valueStyle={{ color: "#3b82f6", fontSize: 28 }}
+              value={agentPresentation.label}
+              prefix={<RobotOutlined style={{ color: agentPresentation.color }} />}
+              valueStyle={{ color: agentPresentation.color, fontSize: 28 }}
             />
-            <Badge status="success" text="守护引擎在线" style={{ marginTop: 6 }} />
+            <Badge
+              status={agentPresentation.badgeStatus}
+              text={agentPresentation.badgeText}
+              style={{ marginTop: 6 }}
+            />
           </Card>
         </Col>
         <Col xs={12} md={6}>
@@ -413,7 +454,7 @@ export default function Dashboard() {
           <Card
             className="cs-card"
             title={<Space><AlertOutlined /> 最近告警</Space>}
-            extra={<Tag color="green">{overview?.agent_status ?? "active"}</Tag>}
+            extra={<Tag color={agentPresentation.tagColor}>{rawAgentStatus}</Tag>}
           >
             <List
               dataSource={alertsForList.length ? alertsForList.slice(0, 6) : recentAlerts.map((a, i) => ({ ...a, id: i, vehicle_id: 0, alert_type: "", status: "active", triggered_at: new Date().toISOString() }))}

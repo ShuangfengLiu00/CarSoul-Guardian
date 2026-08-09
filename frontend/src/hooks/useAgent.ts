@@ -22,12 +22,20 @@ export function useAgent() {
           session_id: sessionId || undefined,
         });
         if (resp.session_id) setSessionId(resp.session_id);
+        // 诚实降级：未证明"链路可用且本轮真的调了大模型"即视为降级。
+        // 这里刻意不信任 resp.agent_status 之外的任何默认值，也不再无条件 active。
+        const trulyLive = Boolean(resp.llm_available) && Boolean(resp.llm_used);
         pushMessage({
           role: "assistant",
           content: resp.answer,
           closed_loop: resp.closed_loop ?? null,
+          degraded: trulyLive ? null : (resp.degraded ?? { reason: "unknown" }),
+          citations: resp.citations ?? [],
+          llm_used: Boolean(resp.llm_used),
+          compliance_refused: Boolean(resp.compliance_refused),
+          engine: resp.engine ?? "unknown",
         });
-        setStatus("active");
+        setStatus(trulyLive ? "active" : "degraded");
         onReply?.(resp.answer);
       } catch {
         pushMessage({

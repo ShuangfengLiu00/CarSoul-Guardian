@@ -110,6 +110,12 @@ export default function AgentChat() {
         return <Tag color="processing">思考中…</Tag>;
       case "active":
         return <Tag color="success">守护在线</Tag>;
+      case "degraded":
+        return (
+          <Tooltip title="本轮回答未经大模型转述，由确定性规则/模板生成">
+            <Tag color="warning">降级模式</Tag>
+          </Tooltip>
+        );
       case "error":
         return <Tag color="error">连接异常</Tag>;
       default:
@@ -224,11 +230,44 @@ export default function AgentChat() {
                   icon={m.role === "user" ? <UserOutlined /> : <RobotOutlined />}
                 />
                 <div className="cs-msg-body" style={{ maxWidth: "80%" }}>
+                  {/* 降级 / 合规拒答必须在气泡上可见，且与普通回答样式有别 */}
+                  {m.role === "assistant" && m.compliance_refused && (
+                    <div style={{ marginBottom: 6 }}>
+                      <Tag color="red">合规拒答</Tag>
+                    </div>
+                  )}
+                  {m.role === "assistant" && !m.compliance_refused && m.degraded && (
+                    <div style={{ marginBottom: 6 }}>
+                      <Tooltip
+                        title={
+                          m.degraded.detail ||
+                          `降级原因：${m.degraded.reason}` ||
+                          "未经大模型转述"
+                        }
+                      >
+                        <Tag color="warning">
+                          降级模式 · 未经大模型转述
+                          {m.engine ? ` · ${m.engine}` : ""}
+                        </Tag>
+                      </Tooltip>
+                    </div>
+                  )}
                   <div
                     className="cs-bubble"
                     style={{
-                      background: m.role === "user" ? "#eef2ff" : "#fff",
-                      border: "1px solid #eef0f4",
+                      background:
+                        m.role === "user"
+                          ? "#eef2ff"
+                          : m.compliance_refused
+                            ? "#fff1f0"
+                            : m.degraded
+                              ? "#fffbe6"
+                              : "#fff",
+                      border: m.compliance_refused
+                        ? "1px solid #ffa39e"
+                        : m.role === "assistant" && m.degraded
+                          ? "1px dashed #f0c36d"
+                          : "1px solid #eef0f4",
                       borderRadius: 14,
                       padding: "12px 16px",
                       fontSize: 16,
@@ -238,6 +277,18 @@ export default function AgentChat() {
                   >
                     {m.content}
                   </div>
+                  {m.role === "assistant" && !!m.citations?.length && (
+                    <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                      {m.citations.map((c, i) => (
+                        <Tooltip key={c.id ?? i} title={c.source ?? ""}>
+                          <Tag color="blue" style={{ fontSize: 12 }}>
+                            {c.id ? `[${c.id}] ` : ""}
+                            {c.title ?? "引用"}
+                          </Tag>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  )}
                   {m.role === "assistant" && m.closed_loop && (
                     <ClosedLoopTrace loop={m.closed_loop} compact />
                   )}
