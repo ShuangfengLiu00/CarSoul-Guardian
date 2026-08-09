@@ -790,8 +790,12 @@ export interface HealthDataStatus {
 export interface AgentLinkState {
   llm_available: boolean;
   llm_used: boolean;
-  /** 最近一轮回答是否**真的**受损（= degraded.affects_this_turn），确定性路径为 false */
-  affects_last_turn: boolean;
+  /** 最近一轮回答是否**真的**受损（= degraded.affects_this_turn）。
+   *  - false = 确证未受损（确定性路径：合规闸门 / 反问 / 超纲声明）
+   *  - true  = 确证受损（真降级）
+   *  - null  = 未证明（上游违约：llm_available=false 却没给 degraded）。
+   *    此时不许当作 false——没证明没受损就不许当没受损，必须按受损处理。 */
+  affects_last_turn: boolean | null;
   engine: string;
   reason?: string | null;
   /** 为 null/缺省表示尚未发生过任何一轮对话 */

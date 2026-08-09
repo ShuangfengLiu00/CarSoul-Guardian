@@ -58,7 +58,12 @@ export function useAgent() {
         setLinkFacts({
           llmAvailable: Boolean(resp.llm_available),
           llmUsed: Boolean(resp.llm_used),
-          affectsThisTurn: resp.degraded?.affects_this_turn === true,
+          // 三态：上游违约（degraded=null 且 llm_available=false）时显式置 null，
+          // 表示"未证明本轮没受损"——不许退化成 false 去套"本轮未受影响"的编造理由。
+          affectsThisTurn:
+            resp.degraded == null && resp.llm_available === false
+              ? null
+              : resp.degraded?.affects_this_turn === true,
           reason: resp.degraded?.reason ?? null,
           detail: resp.degraded?.detail ?? null,
         });

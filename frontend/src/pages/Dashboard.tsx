@@ -264,7 +264,9 @@ export default function Dashboard() {
     }
     // 以下都是 degraded：再按"本轮是否真受损 / 链路是否可用"细分。
     // 拿不到 agent_link 时取最保守的一档（未证明没受损即按受损处理）。
-    if (!link || link.affects_last_turn) {
+    // 三态：affects_last_turn 为 null（上游违约：llm_available=false 却没给 degraded）
+    // 不许退化成 false 去套"链路不可用·本轮未受影响"的编造理由，必须落到"降级运行"。
+    if (!link || link.affects_last_turn !== false) {
       return {
         label: "降级运行",
         color: "#f59e0b",

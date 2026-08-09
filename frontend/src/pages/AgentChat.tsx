@@ -121,7 +121,7 @@ export default function AgentChat() {
         return <Tag color="error">连接异常</Tag>;
       case "degraded": {
         // 拿不到链路事实时取"受损"这一侧：没证明没受损，就不许当作没受损。
-        if (!linkFacts || linkFacts.affectsThisTurn) {
+        if (!linkFacts || linkFacts.affectsThisTurn !== false) {
           return (
             <Tooltip title={linkFacts?.detail || "本轮回答未经大模型转述，由确定性规则/模板生成"}>
               <Tag color="warning">降级模式</Tag>

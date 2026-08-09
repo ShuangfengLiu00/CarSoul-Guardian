@@ -28,8 +28,12 @@ export interface ChatMessage {
 export interface LinkFacts {
   llmAvailable: boolean;
   llmUsed: boolean;
-  /** 本轮回答是否**真的**因链路不可用而受损（确定性路径为 false） */
-  affectsThisTurn: boolean;
+  /** 本轮回答是否**真的**因链路不可用而受损。
+   *  - false = 确证未受损（确定性路径：合规闸门 / 反问 / 超纲声明）
+   *  - true  = 确证受损（真降级）
+   *  - null  = 未证明（上游违约：llm_available=false 却没给 degraded）。
+   *    此时不许当作 false——没证明没受损就不许当没受损，必须按受损处理。 */
+  affectsThisTurn: boolean | null;
   reason?: string | null;
   detail?: string | null;
 }
