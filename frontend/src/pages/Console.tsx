@@ -36,6 +36,7 @@ const coreEntries: Entry[] = [
   { key: "vehicle", title: "车辆档案", desc: "单车全量数据透视", icon: <CarOutlined />, to: "/vehicle" },
   { key: "knowledge", title: "知识库", desc: "汽车知识 RAG 检索问答", icon: <BookOutlined />, to: "/knowledge" },
   { key: "risk", title: "风险预测", desc: "故障 / 残值前瞻预警", icon: <AlertOutlined />, to: "/risk" },
+  { key: "sensors", title: "传感器总览", desc: "全车 58 项传感器实时快照", icon: <DashboardOutlined />, to: "/sensors" },
   { key: "safety", title: "安全合规", desc: "守护边界与披露", icon: <SafetyCertificateOutlined />, to: "/safety" },
   { key: "governance", title: "治理控制台", desc: "Agent 权限与版本", icon: <ControlOutlined />, to: "/governance" },
   { key: "memory", title: "记忆海洋", desc: "车辆记忆可视化", icon: <ExperimentOutlined />, to: "/memory" },

@@ -18,6 +18,7 @@ import {
   TimelineDemo,
   Console,
   MemoryOcean,
+  SensorOverview,
 } from "@/pages/index";
 
 export default function App() {
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/safety" element={<SafetyCompliance />} />
         <Route path="/story" element={<StoryMode />} />
         <Route path="/simulator" element={<VehicleSimulator />} />
+        <Route path="/sensors" element={<SensorOverview />} />
         <Route path="/governance" element={<Governance />} />
         <Route path="/timeline" element={<TimelineDemo />} />
         <Route path="/portal" element={<Console />} />

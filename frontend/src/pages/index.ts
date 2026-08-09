@@ -17,6 +17,8 @@ export * from "./RiskPrediction";
 export { default as RiskPrediction } from "./RiskPrediction";
 export * from "./SafetyCompliance";
 export { default as SafetyCompliance } from "./SafetyCompliance";
+export * from "./SensorOverview";
+export { default as SensorOverview } from "./SensorOverview";
 export * from "./StoryMode";
 export { default as StoryMode } from "./StoryMode";
 export * from "./TimelineDemo";

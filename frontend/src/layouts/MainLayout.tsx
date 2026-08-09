@@ -16,12 +16,18 @@ import {
   FieldTimeOutlined,
   AppstoreOutlined,
   BookOutlined,
+  ExperimentOutlined,
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
+/**
+ * 主菜单（核心动线）。
+ * 注意：/story 与 /evolution 已移出主菜单（见 LAB_ITEMS），路由本身保留，
+ * 仅通过「实验室」二级入口或直达 URL 访问，避免把未成熟能力放进主动线。
+ */
 const menuItems = [
   { key: "/portal", icon: <AppstoreOutlined />, label: "统一入口" },
   { key: "/", icon: <DashboardOutlined />, label: "Dashboard" },
@@ -32,12 +38,33 @@ const menuItems = [
   { key: "/knowledge", icon: <BookOutlined />, label: "知识库" },
   { key: "/risk", icon: <AlertOutlined />, label: "风险预测" },
   { key: "/safety", icon: <SafetyCertificateOutlined />, label: "安全合规" },
-  { key: "/simulator", icon: <ToolOutlined />, label: "演示推演" },
-  { key: "/story", icon: <PlayCircleOutlined />, label: "故事模式" },
+  { key: "/simulator", icon: <ToolOutlined />, label: "推演沙盘" },
+  { key: "/sensors", icon: <DashboardOutlined />, label: "传感器总览" },
   { key: "/governance", icon: <ControlOutlined />, label: "治理控制台" },
   { key: "/timeline", icon: <FieldTimeOutlined />, label: "一辆车的一生" },
+];
+
+/** 实验室（二级入口）：路由保留但不进主动线。 */
+const LAB_ITEMS = [
+  { key: "/story", icon: <PlayCircleOutlined />, label: "故事模式" },
   { key: "/evolution", icon: <RocketOutlined />, label: "进化引擎" },
 ];
+
+const LAB_GROUP_KEY = "lab";
+
+/** 桌面侧栏渲染项 = 主菜单 + 「实验室」折叠子菜单。 */
+const siderItems = [
+  ...menuItems,
+  {
+    key: LAB_GROUP_KEY,
+    icon: <ExperimentOutlined />,
+    label: "实验室",
+    children: LAB_ITEMS,
+  },
+];
+
+/** 用于高亮匹配的全量路由项（含实验室）。 */
+const ALL_ROUTE_ITEMS = [...menuItems, ...LAB_ITEMS];
 
 // 平板/手机检测：触摸设备 或 窄屏
 function useIsTablet() {
@@ -65,8 +92,11 @@ export default function MainLayout({ children }: { children?: ReactNode }) {
   } = theme.useToken();
 
   const selectedKey =
-    menuItems.find((m) => location.pathname.startsWith(m.key) && m.key !== "/")?.key ||
+    ALL_ROUTE_ITEMS.find((m) => location.pathname.startsWith(m.key) && m.key !== "/")?.key ||
     (location.pathname === "/" ? "/" : "/");
+
+  // 命中实验室路由时自动展开「实验室」子菜单，保证直达 URL 也能定位。
+  const openKeys = LAB_ITEMS.some((m) => m.key === selectedKey) ? [LAB_GROUP_KEY] : undefined;
 
   // ===== 平板/手机布局：顶部 Header + 底部 Tab Bar =====
   if (isTablet) {
@@ -162,8 +192,12 @@ export default function MainLayout({ children }: { children?: ReactNode }) {
         <Menu
           mode="inline"
           selectedKeys={[selectedKey]}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
+          defaultOpenKeys={openKeys}
+          items={siderItems}
+          onClick={({ key }) => {
+            if (key === LAB_GROUP_KEY) return;
+            navigate(key);
+          }}
           style={{ borderInlineEnd: "none", padding: "4px 0" }}
         />
       </Sider>

@@ -276,6 +276,73 @@ export interface SensorSeries {
   points: SensorSeriesPoint[];
 }
 
+// ---- Full-vehicle sensor snapshot (6 domains / 58 signals) ----
+// 对应后端 backend/app/schemas/sensor_data.py 的 SensorSnapshotResponse。
+
+/** 单个传感器的 registry 静态元数据：量程、告警阈值、采样率。 */
+export interface SensorSpecOut {
+  min?: number;
+  max?: number;
+  warn_low?: number | null;
+  warn_high?: number | null;
+  crit_low?: number | null;
+  crit_high?: number | null;
+  step?: number;
+  sample_hz_can?: number;
+  sample_hz_upload?: number;
+  adjustable?: boolean;
+}
+
+export type SensorStatus = "normal" | "warn" | "crit";
+
+/** 单个传感器的当前值 + spec + 派生状态。 */
+export interface SensorSnapshotSensor {
+  sensor_type: string;
+  label: string;
+  value: number;
+  unit?: string | null;
+  spec: SensorSpecOut | null;
+  status: SensorStatus;
+  /** seed（库内读数）| default（registry 基线回落） */
+  source: string;
+}
+
+/** 一个传感器域及其信号。 */
+export interface SensorSnapshotDomain {
+  domain: string;
+  label: string;
+  vhs_component?: string;
+  vhs_weight?: number;
+  sensors: SensorSnapshotSensor[];
+}
+
+/** 自包含的简化 VHS 基线分。 */
+export interface SensorSnapshotBaseline {
+  health_score: number;
+  grade: string;
+  grade_label: string;
+  /** domain key → 域得分 */
+  breakdown: Record<string, number>;
+}
+
+/** GOAI 数据来源溯源信封。 */
+export interface SensorSnapshotProvenance {
+  data_source: string;
+  demo_mode: boolean;
+  badge_level: string;
+  origin: string;
+  as_of: string;
+}
+
+export interface SensorSnapshot {
+  vehicle_id: number;
+  as_of: string;
+  energy_type: string;
+  domains: SensorSnapshotDomain[];
+  baseline: SensorSnapshotBaseline;
+  provenance: SensorSnapshotProvenance;
+}
+
 // ---- Trips ----
 export interface Trip {
   id: number;

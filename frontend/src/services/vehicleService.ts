@@ -22,6 +22,7 @@ import type {
   SensorData,
   SensorDataList,
   SensorSeries,
+  SensorSnapshot,
   Trip,
   TripList,
   TripSummary,
@@ -149,6 +150,19 @@ export const vehicleService = {
     post<SensorData>(`/api/vehicle/${id}/sensors`, body),
   createSensorsBatch: (id: number, readings: Partial<SensorData>[]) =>
     post<SensorDataList>(`/api/vehicle/${id}/sensors/batch`, { readings }),
+
+  /**
+   * 全车传感器当前快照（6 域 / 58 项信号）。
+   * @param params.domain 逗号分隔的域筛选，如 "battery,motor"；缺省返回全部。
+   * @param params.include_spec 是否返回量程/阈值/采样率元数据，缺省 true。
+   */
+  getSensorSnapshot: (id: number, params?: { domain?: string; include_spec?: boolean }) => {
+    const search = new URLSearchParams();
+    if (params?.domain) search.set("domain", params.domain);
+    if (params?.include_spec != null) search.set("include_spec", String(params.include_spec));
+    const qs = search.toString();
+    return get<SensorSnapshot>(`/api/vehicle/${id}/sensors/snapshot${qs ? `?${qs}` : ""}`);
+  },
 
   // ---- Trips ----
   listTrips: (id: number, limit = 50) =>
