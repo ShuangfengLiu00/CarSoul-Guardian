@@ -26,9 +26,26 @@ api.interceptors.request.use((config) => {
 });
 
 // Global error handling.
+// 401：令牌可能过期/缺失 → 静默重新登录（utils/silentLogin）后重试一次，
+// 避免演示中途（JWT 60 分钟过期）全站突然转 401。
 api.interceptors.response.use(
   (resp) => resp,
-  (error) => {
+  async (error) => {
+    const status = error?.response?.status;
+    if (status === 401 && error.config && !error.config._retry) {
+      error.config._retry = true;
+      try {
+        const { ensureAuthToken } = await import("@/utils/silentLogin");
+        const tok = await ensureAuthToken();
+        if (tok) {
+          error.config.headers = error.config.headers || {};
+          error.config.headers.Authorization = `Bearer ${tok}`;
+          return api(error.config);
+        }
+      } catch {
+        // 重登失败：落到下面的通用错误提示
+      }
+    }
     const detail = error?.response?.data?.detail || error?.message || "请求失败";
     if (!axios.isCancel(error)) {
       message.error(typeof detail === "string" ? detail : "请求失败");

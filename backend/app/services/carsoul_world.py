@@ -16,11 +16,22 @@ from app.core.config import settings
 
 
 async def _request(method: str, path: str, *, json=None, params=None, timeout: float = 30.0):
+    # 服务间鉴权（P0 鉴权断链修复）：注入 Guardian 持有的 carModel 服务令牌。
+    # 令牌由 carModel 用 CARSOUL_API_JWT_SECRET 签发，经 CARSOUL_WORLD_API_TOKEN
+    # 环境变量注入；为空时调用必 401（fail-closed，不是 bug）。
+    # 两侧 JWT 实现不同（Guardian=python-jose / carModel=stdlib），故不走共享密钥。
+    headers = {}
+    svc_token = settings.CARSOUL_WORLD_API_TOKEN
+    if svc_token:
+        headers["Authorization"] = f"Bearer {svc_token}"
     try:
         async with httpx.AsyncClient(
             base_url=settings.CARSOUL_WORLD_API_URL, timeout=timeout
         ) as client:
-            resp = await client.request(method, path, json=json, params=params)
+            resp = await client.request(
+                method, path, json=json, params=params,
+                headers=headers or None,
+            )
             resp.raise_for_status()
             return resp.json()
     except httpx.HTTPStatusError as exc:  # carModel 4xx/5xx (含 404 无此车辆 / 503 模型未就绪)

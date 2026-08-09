@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "@/layouts/index";
+import { ensureAuthToken } from "@/utils/silentLogin";
 import {
   Dashboard,
   AgentChat,
@@ -19,6 +21,11 @@ import {
 } from "@/pages/index";
 
 export default function App() {
+  // 启动即静默登录（demo 账号），拿令牌写入 localStorage，使全站 /api 调用带牌。
+  useEffect(() => {
+    ensureAuthToken();
+  }, []);
+
   return (
     <Routes>
       {/* ===== Main routes (Ant Design layout) ===== */}

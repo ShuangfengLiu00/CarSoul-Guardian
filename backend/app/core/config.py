@@ -128,6 +128,12 @@ class Settings(BaseSettings):
     # SOH / 故障 / 残值 / 反事实预测。引擎默认跑在 :8000（见 start.sh）。
     CARSOUL_WORLD_API_URL: str = "http://localhost:8000"
 
+    # Guardian→carModel 服务间调用携带的 Bearer 令牌（P0 鉴权断链修复）。
+    # 由 carModel 用其自身 CARSOUL_API_JWT_SECRET 签发（见 tools/mint_service_token.py
+    # 或 docs/auth-token-chain.md），经此变量注入 carsoul_world._request。
+    # 为空时 Guardian→carModel 的所有业务调用都会 401（fail-closed，属预期）。
+    CARSOUL_WORLD_API_TOKEN: str = ""
+
     # Dashboard ``/api/health/overview`` 在调用方没指定 vehicle_id 时使用的
     # 缺省 carModel 车辆（如 "CS001"）。**默认留空**：Guardian 的车辆表与
     # carModel 的 vehicle_id 之间目前没有映射关系，没人指定车就意味着拿不到
