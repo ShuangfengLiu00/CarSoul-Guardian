@@ -745,12 +745,33 @@ export interface AlertItem {
   level: "info" | "warning" | "critical";
   title: string;
   detail: string;
+  /** 该条告警的数据来源（如 carmodel:/world/state），便于溯源 */
+  source?: string | null;
+}
+
+/** 本次 overview 的数据真实性说明。UI 必须据此决定显示真值还是「暂无数据」。 */
+export interface HealthDataStatus {
+  /** ok_carmodel_state | no_vehicle_selected | carmodel_unavailable | carmodel_state_incomplete */
+  code: string;
+  detail: string;
 }
 
 export interface HealthOverview {
-  health_score: number;
+  /**
+   * 0-100 综合健康分。**null = 取不到真实车况**。
+   * 绝不能在 UI 里用 `?? 0` 或演示数据兜底把它变成一个好看的数字 ——
+   * 历史版本后端硬编码 92，那正是要根除的东西。
+   */
+  health_score: number | null;
+  /** 健康分的来源与口径，便于用户判断这个数字可不可信 */
+  health_score_basis?: string | null;
   agent_status: string;
   recent_alerts: AlertItem[];
+  vehicle_id?: string | null;
+  /** 车况数据在 carModel 侧的观测时间 */
+  as_of?: string | null;
+  data_source?: string | null;
+  data_status: HealthDataStatus;
 }
 
 // ---- Knowledge Base (RAG) ----

@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     # SOH / 故障 / 残值 / 反事实预测。引擎默认跑在 :8000（见 start.sh）。
     CARSOUL_WORLD_API_URL: str = "http://localhost:8000"
 
+    # Dashboard ``/api/health/overview`` 在调用方没指定 vehicle_id 时使用的
+    # 缺省 carModel 车辆（如 "CS001"）。**默认留空**：Guardian 的车辆表与
+    # carModel 的 vehicle_id 之间目前没有映射关系，没人指定车就意味着拿不到
+    # 真实车况 —— 那就如实显示"暂无数据"，绝不拿一辆随便挑的车冒充"本车"。
+    # 演示需要真实数据时，在 .env 里显式指定一辆真车。
+    CARSOUL_WORLD_DEFAULT_VEHICLE_ID: str = ""
+
     # ---------- Knowledge base ----------
     VECTOR_DB_PATH: str = "./ai-agent/memory/vector_store"
     CHROMA_COLLECTION: str = "carsoul_guardian"

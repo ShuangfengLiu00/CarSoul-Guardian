@@ -92,6 +92,10 @@ export default function Dashboard() {
         return;
       }
       try {
+        // 不传 vehicleId：Guardian 的车辆表主键（id=1001）与 carModel 的
+        // vehicle_id（如 CS001）是两套命名空间，前端目前没有映射关系；交给后端用
+        // CARSOUL_WORLD_DEFAULT_VEHICLE_ID 决定查哪辆车。绝不能用 Guardian 数字主键
+        // 冒充 carModel 车辆 id —— 那会命中 carModel 404 被误报成"服务不可达"。
         const h = await healthService.overview().catch(() => null);
         if (!alive) return;
         setOverview(h);
@@ -145,8 +149,14 @@ export default function Dashboard() {
     }));
   }, [archive]);
 
-  const score = overview?.health_score ?? archive?.health_score ?? 0;
+  // 健康分只认 carModel 真值（overview.health_score）。**绝不**回落到 demo 档案的
+  // health_score（DEMO_ARCHIVE=92）—— 那正是历史版本"假 92 分"的来路：carModel 不可达
+  // 时 overview.health_score 为 null，若再 `?? archive?.health_score` 就会把演示 92 透出来。
+  // 这里置空，由卡片如实渲染"暂无数据"。
+  const score = overview?.health_score ?? null;
+  const scoreAvailable = score !== null && score !== undefined;
   const scoreColor = useMemo(() => {
+    if (score === null || score === undefined) return "#8c8c8c";
     if (score >= 85) return "#10b981";
     if (score >= 60) return "#f59e0b";
     return "#ef4444";
@@ -274,8 +284,8 @@ export default function Dashboard() {
         </div>
         <Space>
           <DemoBadge inline />
-          <Tag color="green" style={{ borderRadius: 12, padding: "2px 12px" }}>
-            <RobotOutlined /> 守护在线
+          <Tag color={agentPresentation.tagColor} style={{ borderRadius: 12, padding: "2px 12px" }}>
+            <RobotOutlined /> {agentPresentation.label}
           </Tag>
         </Space>
       </div>
@@ -286,12 +296,25 @@ export default function Dashboard() {
           <Card className="cs-card cs-stat-card">
             <Statistic
               title="车辆健康指数"
-              value={score}
-              suffix="/100"
+              value={scoreAvailable ? score : "暂无数据"}
+              suffix={scoreAvailable ? "/100" : undefined}
               prefix={<HeartOutlined style={{ color: scoreColor }} />}
               valueStyle={{ color: scoreColor, fontSize: 32 }}
             />
-            <Progress percent={score} showInfo={false} strokeColor={scoreColor} size="small" style={{ marginTop: 8 }} />
+            {scoreAvailable ? (
+              <>
+                <Progress percent={score ?? 0} showInfo={false} strokeColor={scoreColor} size="small" style={{ marginTop: 8 }} />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {[overview?.data_source, overview?.as_of ? `观测 ${fmtTime(overview.as_of)}` : null]
+                    .filter(Boolean)
+                    .join(" · ") || "数据来源：carModel"}
+                </Text>
+              </>
+            ) : (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {overview?.data_status?.detail ?? "暂无真实车况数据（carModel 不可达或未指定车辆）"}
+              </Text>
+            )}
           </Card>
         </Col>
         <Col xs={12} md={6}>
@@ -342,7 +365,7 @@ export default function Dashboard() {
           <Card
             className="cs-card"
             title={<Space><ThunderboltOutlined /> 健康指数趋势</Space>}
-            extra={<Tag color={scoreColor}>{score}</Tag>}
+            extra={<Tag color={scoreColor}>{scoreAvailable ? score : "暂无"}</Tag>}
           >
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={healthTrend} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
