@@ -50,6 +50,7 @@ import {
 import dayjs from "dayjs";
 import { vehicleService } from "@/services";
 import { useCurrentVehicle } from "@/hooks";
+import DemoBadge from "@/components/DemoBadge";
 import type {
   VehicleArchive,
   LifecycleEvent,
@@ -1880,10 +1881,15 @@ export default function VehicleArchive() {
   return (
     <div>
       {/* Header */}
-      <Space style={{ justifyContent: "space-between", width: "100%", marginBottom: 16 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          车辆数字生命档案
-        </Title>
+      <Space style={{ justifyContent: "space-between", width: "100%", marginBottom: 16 }} wrap>
+        <Space align="center">
+          <Title level={3} style={{ margin: 0 }}>
+            车辆数字生命档案
+          </Title>
+          {/* 当前默认车辆为 seed 持久虚构车「小白」，数据非真实车辆 — 挂 L2b 角标修复 GOAI 红线2 正向失真。
+              TODO: 待后端 provenance 信封（R-01）落地后改为 level={provenance.badge_level} 驱动，不再硬编码。 */}
+          <DemoBadge level="L2b" inline />
+        </Space>
         <Button
           icon={<ReloadOutlined />}
           onClick={() => {

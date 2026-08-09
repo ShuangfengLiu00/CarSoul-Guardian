@@ -2,7 +2,7 @@
  * DemoBadge — 演示/数据性质分级角标（全站唯一来源，条件式）
  *
  * 对应 GOAI 红线2：消除"虚假演示"隐患。双维度设计：
- *   - `level`：数据性质分级（L0 真数据 / L1 预测标注 / L2b 持久虚构车 / L3 无后端demo）
+ *   - `level`：数据性质分级（L0 真数据 / L1 预测标注 / L2 演示回落 / L2b 持久虚构车 / L2s 假设推演 / L3 无后端demo）
  *   - `visible`：显隐开关（保留"是否挂载"这第二维度，避免无条件挂载）
  *
  * ⚠️ 双向失真都是违规，二者同等严重：
@@ -13,6 +13,7 @@
  * 用法（v1.1）：
  *   <DemoBadge level="L3" visible />              // 恒定无后端 demo 页（如 /evolution、/story、/simulator、/memory）
  *   <DemoBadge level="L2b" visible />             // 持久虚构车（如 /timeline，后端恒 demo_mode=true）
+ *   <DemoBadge level="L2s" visible />             // 假设推演（如 what-if 面板，非实测、只读推演结果）
  *   <DemoBadge level="L2" visible={usingDemo} />  // 条件式：后端存在，仅当未连通才回落演示数据（如 /dashboard）
  *   <DemoBadge level="L1" visible />              // 预测标注（模型概率性输出，非确定性事实）
  *   <DemoBadge level="L0" visible />              // 真数据：组件返回 null，不渲染
@@ -20,7 +21,9 @@
  * 分级说明：
  *   - L0 真数据：真实接口返回，无任何模拟/占位，不挂角标。
  *   - L1 预测标注：模型预测结果，属概率性推断，非确定性事实。
+ *   - L2 演示回落：后端存在但当前未连通，仅当未连通才回落演示数据。
  *   - L2b 持久虚构车：后端恒 demo_mode=true，返回确定性占位（持久虚构车），不代表真实车辆。
+ *   - L2s 假设推演：what-if 只读推演结果，由用户手动调参生成，非实测、非真实车辆状态。
  *   - L3 无后端demo：无后端、纯前端动画/占位，仅用于功能演示。
  */
 import { Tag, Tooltip } from "antd";
@@ -29,9 +32,10 @@ import {
   WarningOutlined,
   ExperimentOutlined,
   ApiOutlined,
+  BulbOutlined,
 } from "@ant-design/icons";
 
-export type DemoLevel = "L0" | "L1" | "L2" | "L2b" | "L3";
+export type DemoLevel = "L0" | "L1" | "L2" | "L2b" | "L2s" | "L3";
 
 export type DemoBadgePosition =
   | "top-right"
@@ -71,6 +75,13 @@ const LEVEL_META: Record<DemoLevel, LevelMeta> = {
       "后端恒为 demo_mode=true，返回确定性占位数据（持久虚构车）。本页不代表真实车辆状态。",
     icon: <ExperimentOutlined />,
   },
+  L2s: {
+    color: "purple",
+    text: "假设推演 · 非实测",
+    tooltip:
+      "本区/本页展示 what-if 只读推演结果，由您手动调参生成，属假设情景而非实测数据，不代表真实车辆状态。",
+    icon: <BulbOutlined />,
+  },
   L3: {
     color: "red",
     text: "演示模式 · 模拟数据",
@@ -81,7 +92,7 @@ const LEVEL_META: Record<DemoLevel, LevelMeta> = {
 };
 
 interface DemoBadgeProps {
-  /** 数据性质分级：L0 真数据 / L1 预测标注 / L2b 持久虚构车 / L3 无后端demo。必填。 */
+  /** 数据性质分级：L0 真数据 / L1 预测标注 / L2 演示回落 / L2b 持久虚构车 / L2s 假设推演 / L3 无后端demo。必填。 */
   level: DemoLevel;
   /** 是否挂载角标（第二维度：显隐开关）。默认 true。L0 恒不显示，与此无关。 */
   visible?: boolean;

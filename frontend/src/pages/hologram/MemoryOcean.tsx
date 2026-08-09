@@ -1,17 +1,19 @@
 /**
  * Page 09 - Memory Ocean (记忆海洋)
  *
- * Wave-like background animation, memory cards floating in a grid, filter tabs
- * (全部/驾驶/维护/告警/里程碑), memory count stat at top, and an AI learning
- * insights section.
+ * 真实数据来源：Guardian `GET /api/digital-twin/{vehicleId}/memories`
+ * （直接落盘 carsoul_dev.db，非前端 Mock）。车辆身份由 useCurrentVehicle
+ * 统一提供整数 vehicle_id。取不到数据时显示「暂无记忆」，绝不回填 Mock。
  */
-import { useState, useMemo } from "react";
-import { GlassPanel } from "@/components/hologram";
-import { DemoBadge } from "@/components";
-import { memories, vehicleTwin } from "@/services/holoData";
+import { useState, useMemo, useEffect } from "react";
+import { GlassPanel, DemoBadge } from "@/components";
+import { useCurrentVehicle } from "@/hooks/useCurrentVehicle";
+import { digitalTwinService } from "@/services/digitalTwinService";
+import type { DigitalTwinMemory } from "@/services/digitalTwinService";
 import type { MemoryItem } from "@/services/holoData";
+import { Empty, Spin } from "antd";
 
-type FilterTab = "all" | "driving" | "maintenance" | "alert" | "milestone";
+type FilterTab = "all" | "driving" | "maintenance" | "alert" | "emotion" | "milestone";
 
 const TABS: { key: FilterTab; label: string }[] = [
   { key: "all", label: "全部" },
@@ -29,20 +31,96 @@ const TYPE_COLOR: Record<string, string> = {
   milestone: "#00ff9d",
 };
 
+const TYPE_ICON: Record<string, string> = {
+  driving: "🚗",
+  maintenance: "🔧",
+  alert: "⚠️",
+  emotion: "🎵",
+  milestone: "🏆",
+};
+
+/** 真实记忆类型 → MemoryItem 展示类型 */
+function mapMemoryType(t: string): MemoryItem["type"] {
+  switch (t) {
+    case "warning": return "alert";
+    case "recovery": return "maintenance";
+    case "emotion": return "emotion";
+    case "milestone": return "milestone";
+    case "habit":
+    case "event":
+    case "preference":
+    case "context":
+    default: return "driving";
+  }
+}
+
+function fmtTime(iso: string): string {
+  // 2026-08-08T21:20:19 → 2026-08-08 21:20
+  return iso.replace("T", " ").slice(0, 16);
+}
+
+function toMemoryItem(m: DigitalTwinMemory): MemoryItem {
+  const type = mapMemoryType(m.memory_type);
+  return {
+    id: String(m.id),
+    time: fmtTime(m.created_time),
+    type,
+    content: m.content,
+    aiLearning: `重要性 ${m.importance}/10`,
+    confidence: m.importance * 10,
+    icon: TYPE_ICON[type],
+  };
+}
+
 export default function MemoryOcean() {
+  const { vehicle } = useCurrentVehicle();
   const [filter, setFilter] = useState<FilterTab>("all");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [items, setItems] = useState<MemoryItem[]>([]);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    if (!vehicle) return;
+    let alive = true;
+    setLoading(true);
+    setError(false);
+    digitalTwinService
+      .getMemories(vehicle.id, 100)
+      .then((data) => {
+        if (!alive) return;
+        setItems(data.items.map(toMemoryItem));
+        setTotal(data.total);
+      })
+      .catch(() => {
+        if (alive) setError(true);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [vehicle]);
 
   const filtered = useMemo(() => {
-    if (filter === "all") return memories;
-    return memories.filter((m) => m.type === filter);
-  }, [filter]);
+    if (filter === "all") return items;
+    return items.filter((m) => m.type === filter);
+  }, [filter, items]);
+
+  // 真实聚合洞察（来自真实记忆分布，非写死文案）
+  const insight = useMemo(() => {
+    const byType: Record<string, number> = {};
+    items.forEach((m) => (byType[m.type] = (byType[m.type] || 0) + 1));
+    const top = Object.entries(byType).sort((a, b) => b[1] - a[1])[0];
+    return { byType, top };
+  }, [items]);
 
   return (
     <div className="holo-page" style={{ minHeight: "100vh", padding: 16, position: "relative" }}>
       <DemoBadge level="L3" visible />
       <div className="holo-scanline" style={{ position: "fixed", inset: 0, zIndex: 0 }} />
 
-      {/* Wave background */}
       <WaveBackground />
 
       <div style={{ position: "relative", zIndex: 2 }}>
@@ -51,14 +129,14 @@ export default function MemoryOcean() {
           <div>
             <h2 className="holo-section-title">记忆海洋 · 车辆数字记忆</h2>
             <p className="holo-text-dim" style={{ fontSize: 13, margin: "4px 0 0" }}>
-              每一段旅程都被铭记 · AI 持续学习进化
+              每一段旅程都被铭记 · 真实记忆落盘于车辆数字生命档案
             </p>
           </div>
           <div className="holo-glass holo-corners" style={{ padding: "14px 28px", textAlign: "center" }}>
             <div className="holo-gradient-text holo-anim-glow-text" style={{ fontSize: 32, fontWeight: 900, lineHeight: 1 }}>
-              {vehicleTwin.memoryCount.toLocaleString()}
+              {loading ? "…" : total.toLocaleString()}
             </div>
-            <div className="holo-text-dim" style={{ fontSize: 11, marginTop: 4, letterSpacing: "0.1em" }}>条记忆记录</div>
+            <div className="holo-text-dim" style={{ fontSize: 11, marginTop: 4, letterSpacing: "0.1em" }}>条真实记忆</div>
           </div>
         </div>
 
@@ -77,36 +155,56 @@ export default function MemoryOcean() {
         </div>
 
         {/* Memory grid */}
-        <div className="holo-grid holo-grid-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
-          {filtered.map((memory, i) => (
-            <MemoryCard key={memory.id} memory={memory} index={i} />
-          ))}
-        </div>
-
-        {/* AI insights */}
-        <GlassPanel className="holo-anim-fade-in holo-corners" style={{ marginTop: 20 }}>
-          <div className="holo-section-title">AI 学习洞察</div>
-          <div className="holo-grid holo-grid-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
-            <InsightItem
-              icon="📊"
-              color="#00f0ff"
-              title="驾驶习惯学习"
-              text="已连续 7 天保持低能耗驾驶模式，能效评分 A+，AI 正在优化能量回收策略。"
-            />
-            <InsightItem
-              icon="🔔"
-              color="#ffb800"
-              title="异常模式识别"
-              text="检测到下坡路段频繁急刹，建议启用动能回收强档模式以提升能效与制动寿命。"
-            />
-            <InsightItem
-              icon="🎵"
-              color="#ec4899"
-              title="情绪与行为关联"
-              text="夜间播放轻音乐时驾驶风格明显平稳，音乐有助于改善驾驶习惯，置信度 78%。"
-            />
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 80 }}>
+            <Spin size="large" />
           </div>
-        </GlassPanel>
+        ) : error ? (
+          <GlassPanel className="holo-anim-fade-in holo-corners" style={{ textAlign: "center", padding: 60 }}>
+            <Empty description={<span className="holo-text-dim">记忆数据取数失败，请稍后重试</span>} />
+          </GlassPanel>
+        ) : filtered.length === 0 ? (
+          <GlassPanel className="holo-anim-fade-in holo-corners" style={{ textAlign: "center", padding: 60 }}>
+            <Empty description={<span className="holo-text-dim">暂无该类型记忆</span>} />
+          </GlassPanel>
+        ) : (
+          <div className="holo-grid holo-grid-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
+            {filtered.map((memory, i) => (
+              <MemoryCard key={memory.id} memory={memory} index={i} />
+            ))}
+          </div>
+        )}
+
+        {/* AI insights — 来自真实记忆分布的聚合，非写死 */}
+        {!loading && !error && items.length > 0 && (
+          <GlassPanel className="holo-anim-fade-in holo-corners" style={{ marginTop: 20 }}>
+            <div className="holo-section-title">AI 学习洞察</div>
+            <div className="holo-grid holo-grid-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+              <InsightItem
+                icon="🧠"
+                color="#00f0ff"
+                title="真实记忆总量"
+                text={`本车已积累 ${total} 条真实数字记忆，全部落盘于车辆数字生命档案。`}
+              />
+              <InsightItem
+                icon="📊"
+                color="#ffb800"
+                title="主导记忆类型"
+                text={
+                  insight.top
+                    ? `占比最高为「${insight.top[0]}」类记忆，共 ${insight.top[1]} 条。`
+                    : "暂无可分析类型。"
+                }
+              />
+              <InsightItem
+                icon="🔍"
+                color="#ec4899"
+                title="数据来源"
+                text="记忆由系统基于真实出行、保养与告警事件自动沉淀，可经数字生命接口真实写入。"
+              />
+            </div>
+          </GlassPanel>
+        )}
       </div>
     </div>
   );
@@ -127,7 +225,7 @@ function MemoryCard({ memory, index }: { memory: MemoryItem; index: number }) {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <span style={{ fontSize: 24 }}>{memory.icon}</span>
-        <span className="holo-text-dim" style={{ fontSize: 12 }}>{memory.time}</span>
+        <span style={{ fontSize: 12 }} className="holo-text-dim">{memory.time}</span>
         <span className="holo-chip" style={{ marginLeft: "auto", borderColor: `${color}55`, color, background: `${color}11` }}>
           {memory.type}
         </span>

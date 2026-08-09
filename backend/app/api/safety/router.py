@@ -24,7 +24,12 @@ import logging
 
 from fastapi import APIRouter
 
-from app.schemas.safety import GateStats, GateStatsDataStatus
+from app.schemas.safety import (
+    GateStats,
+    GateStatsDataStatus,
+    ComplianceSample,
+    ComplianceSamples,
+)
 from app.services import carsoul_world
 
 router = APIRouter()
@@ -105,4 +110,67 @@ async def gate_stats() -> GateStats:
         degraded_reason=degraded_reason,
         data_source=_SOURCE,
         data_status=GateStatsDataStatus(code="ok_carmodel_gate_stats", detail=ok_detail),
+    )
+
+
+@router.get("/samples", response_model=ComplianceSamples)
+async def samples(category: str | None = None, limit: int = 20) -> ComplianceSamples:
+    """返回合规闸门命中的**脱敏样本**（PIPL 范围内唯一合法的明细留存）。
+
+    与 ``/gate-stats`` 同一套诚实数据纪律：
+
+    - carModel 读不到真值（503 / 不可达 / 模块缺失）时 ``available=False``、
+      ``samples=None``，前端显示「暂无数据」，**绝不**返回空列表冒充"没有拦过"。
+    - ``source`` 明确标 ``unavailable``，UI 据以区分"取不到"与"确实没有"。
+    - 样本只含占位符串（``[ID]``/``[PHONE]``/…），原始问句不落盘、不进日志、
+      不可反推到自然人。
+    """
+    raw = await carsoul_world.compliance_samples(category=category, limit=limit)
+
+    if not isinstance(raw, dict) or "error" in raw:
+        err = (raw or {}).get("error", "world_model_unavailable")
+        detail = str((raw or {}).get("detail", ""))[:200]
+        logger.warning("carModel compliance-samples 不可达 (%s): %s", err, detail)
+        return ComplianceSamples(
+            available=False,
+            source="unavailable",
+            reason=(
+                f"carModel 脱敏样本取数失败（{err}）：{detail}；"
+                "按诚实数据纪律不返回空列表，请显示「暂无数据」。"
+            ),
+        )
+
+    # 上游契约校验：carModel 仅在 available 时返 200，且 200 响应里**省略**了
+    # available 字段（不可用时直接 503），因此以 ``samples`` 是列表为唯一契约信号，
+    # 绝不用空列表兜底把「取不到」伪装成「没有」。
+    if not isinstance(raw.get("samples"), list):
+        reason = raw.get("reason") or "carModel 返回体不符合样本契约（samples 非列表）"
+        logger.warning("carModel compliance-samples 响应不符合契约: %s", reason)
+        return ComplianceSamples(
+            available=False,
+            source="unavailable",
+            reason=f"{reason}；不猜测内容，请显示「暂无数据」。",
+        )
+
+    samples_in = raw["samples"]
+    return ComplianceSamples(
+        available=True,
+        source="real",
+        samples=[
+            ComplianceSample(
+                category=s.get("category", "unknown"),
+                masked=s.get("masked", ""),
+                created_at=s.get("created_at"),
+            )
+            for s in samples_in
+            if isinstance(s, dict)
+        ],
+        total_stored=raw.get("total_stored"),
+        total_dropped=raw.get("total_dropped"),
+        coverage=raw.get("coverage"),
+        retention_days=raw.get("retention_days"),
+        cap_per_category=raw.get("cap_per_category"),
+        placeholders=list(raw.get("placeholders") or []),
+        drop_kinds=list(raw.get("drop_kinds") or []),
+        data_source="carmodel:/agent/compliance/samples",
     )

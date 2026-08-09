@@ -35,6 +35,13 @@ api.interceptors.response.use(
     if (status === 401 && error.config && !error.config._retry) {
       error.config._retry = true;
       try {
+        // 清除可能过期的旧 token（后端切换 / JWT 过期 / 密钥轮换时，
+        // 存储中的 token 已无效但 ensureAuthToken 会直接复用而不重登）。
+        // 必须在 re-login 前清掉，否则陷入"带坏 token 重试→再 401"的死循环。
+        const { useUserStore } = await import("@/stores/userStore");
+        useUserStore.getState().logout();
+        localStorage.removeItem("carsoul_token");
+
         const { ensureAuthToken } = await import("@/utils/silentLogin");
         const tok = await ensureAuthToken();
         if (tok) {

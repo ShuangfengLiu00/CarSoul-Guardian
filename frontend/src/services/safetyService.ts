@@ -59,6 +59,38 @@ export interface GateStatsResponse {
 
 export const safetyService = {
   gateStats: () => get<GateStatsResponse>("/api/safety/gate-stats"),
+  samples: (params?: { category?: string; limit?: number }) =>
+    get<ComplianceSamplesResponse>("/api/safety/samples", { params }),
 };
 
 export default safetyService;
+
+/**
+ * 合规闸门脱敏样本（PIPL 范围内唯一合法的明细留存形式）。
+ *
+ * 诚实数据纪律（前端渲染侧）：
+ * - `available` 为 false 或 `samples` 为 null 时，整张卡片显示「暂无数据」，
+ *   绝不渲染空列表冒充「没有拦截过」。
+ * - `masked` 是占位符串（[ID]/[PHONE]/…），原始问句不可见、不可反推。
+ * - `source === "unavailable"` 时按「取不到」处理，不猜测内容。
+ */
+export interface ComplianceSample {
+  category: string;
+  masked: string;
+  created_at: string | null;
+}
+
+export interface ComplianceSamplesResponse {
+  available: boolean;
+  source: "real" | "unavailable";
+  samples: ComplianceSample[] | null;
+  total_stored: number | null;
+  total_dropped: number | null;
+  coverage: number | null;
+  retention_days: number | null;
+  cap_per_category: number | null;
+  placeholders: string[];
+  drop_kinds: string[];
+  reason: string | null;
+  data_source: string;
+}

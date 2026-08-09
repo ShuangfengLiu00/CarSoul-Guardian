@@ -14,9 +14,17 @@ import {
   Button,
   Modal,
   Spin,
+  List,
+  Empty,
+  Tooltip,
 } from "antd";
 import { safetyService } from "@/services/safetyService";
-import type { GateStatsResponse, GateCategoryKey } from "@/services/safetyService";
+import type {
+  GateStatsResponse,
+  GateCategoryKey,
+  ComplianceSamplesResponse,
+  ComplianceSample,
+} from "@/services/safetyService";
 import {
   SafetyCertificateOutlined,
   LockOutlined,
@@ -334,6 +342,160 @@ function GateStatsPanel() {
   );
 }
 
+/** 类别 → 中文标签（与 GateStatsPanel 共用口径）。 */
+const CATEGORY_LABEL: Record<string, string> = {
+  identity: "身份信息索取",
+  geo: "位置/轨迹索取",
+  data_fraud: "伪造/篡改车辆数据诱导",
+  repair_mislead: "危险自修诱导",
+  safety_critical: "安全结论索取（免责引导）",
+};
+
+const CATEGORY_TAG_COLOR: Record<string, string> = {
+  identity: "red",
+  geo: "blue",
+  data_fraud: "volcano",
+  repair_mislead: "orange",
+  safety_critical: "gold",
+};
+
+function categoryLabel(key: string): string {
+  return CATEGORY_LABEL[key] || key;
+}
+
+/** 合规闸门脱敏样本面板 —— 严格按后端诚实数据纪律渲染。 */
+function ComplianceSamplesPanel() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<ComplianceSamplesResponse | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    safetyService
+      .samples({ limit: 20 })
+      .then((d) => {
+        if (alive) setData(d);
+      })
+      .catch((e: unknown) => {
+        if (alive) {
+          const detail = (e as { response?: { data?: { detail?: string } } })
+            ?.response?.data?.detail;
+          setError(typeof detail === "string" ? detail : "合规样本取数失败");
+        }
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ textAlign: "center", padding: 24 }}>
+          <Spin />
+        </div>
+      </Card>
+    );
+  }
+
+  // 诚实数据纪律：取不到 / 无可用样本 → 整卡显示「暂无数据」，绝不渲染空列表。
+  const unavailable = !data || data.available !== true || data.source !== "real";
+  const samples = data?.samples ?? null;
+
+  if (unavailable || !samples || samples.length === 0) {
+    const reason =
+      data?.reason || error || "合规闸门尚未留存任何脱敏样本（样本仅在真实拦截时留存，且 30 天 TTL 到期清零）";
+    return (
+      <Card
+        title={
+          <Space>
+            <FileProtectOutlined />
+            合规闸门脱敏样本
+          </Space>
+        }
+        style={{ marginBottom: 16 }}
+      >
+        <Alert type="info" showIcon message="暂无数据" description={reason} />
+      </Card>
+    );
+  }
+
+  const coverage = data.coverage;
+  const coverageText =
+    coverage === null || coverage === undefined
+      ? "尚无样本"
+      : `${(coverage * 100).toFixed(1)}%`;
+
+  return (
+    <Card
+      title={
+        <Space>
+          <FileProtectOutlined />
+          合规闸门脱敏样本
+          <Tooltip title="原始问句不落盘、不进日志；仅保留不可反推的占位符串">
+            <Tag color="green">PIPL 脱敏</Tag>
+          </Tooltip>
+        </Space>
+      }
+      extra={
+        <Tag color="blue">
+          留存 {data.total_stored ?? samples.length} 条 · 覆盖率 {coverageText}
+        </Tag>
+      }
+      style={{ marginBottom: 16 }}
+    >
+      <List
+        size="small"
+        dataSource={samples}
+        renderItem={(s: ComplianceSample) => (
+          <List.Item>
+            <Space direction="vertical" size={2} style={{ width: "100%" }}>
+              <Space wrap>
+                <Tag color={CATEGORY_TAG_COLOR[s.category] || "default"}>
+                  {categoryLabel(s.category)}
+                </Tag>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {s.created_at || "时间未知"}
+                </Text>
+              </Space>
+              <Text
+                style={{
+                  fontFamily: "monospace",
+                  background: "var(--cs-bg-code, #f5f5f5)",
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  wordBreak: "break-all",
+                }}
+              >
+                {s.masked}
+              </Text>
+            </Space>
+          </List.Item>
+        )}
+      />
+      <Divider style={{ margin: "12px 0" }} />
+      <Space direction="vertical" size={2} style={{ width: "100%" }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          留存 {data.total_stored ?? samples.length} 条 · 累计丢弃 {data.total_dropped ?? 0} 条（fail-closed 隐私兜底）·
+          保留期 {data.retention_days ?? 30} 天 · 每类上限 {data.cap_per_category ?? 50} 条
+        </Text>
+        {data.placeholders && data.placeholders.length > 0 && (
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            占位符图例：{data.placeholders.join(" / ")}
+          </Text>
+        )}
+        <Text type="secondary" style={{ fontSize: 12, fontFamily: "monospace" }}>
+          数据来源：{data.data_source}
+        </Text>
+      </Space>
+    </Card>
+  );
+}
+
 export default function SafetyCompliance() {
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
 
@@ -359,6 +521,9 @@ export default function SafetyCompliance() {
 
       {/* 真实合规闸门拦截计数（接 carModel 真实运行时计数，绝不硬编码） */}
       <GateStatsPanel />
+
+      {/* 合规闸门脱敏样本（PIPL 范围内唯一合法的拦截明细留存，接 carModel 真实脱敏数据） */}
+      <ComplianceSamplesPanel />
 
       {/* Quick stats —— 由静态声明数组实时计数，避免写死数字 */}
       <Row gutter={16} style={{ marginBottom: 16 }}>

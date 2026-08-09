@@ -8,10 +8,10 @@
  * - 终幕报告卡（每个数字可追溯）
  * - 演示模式角标（红线2合规）
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Card, Row, Col, Tag, Statistic, Timeline, Badge, Button, Space,
-  Divider, Typography, Progress, Collapse, Empty, Spin,
+  Divider, Typography, Progress, Result, Spin,
 } from "antd";
 import {
   CarOutlined, ThunderboltOutlined, AlertOutlined, HeartOutlined,
@@ -20,9 +20,9 @@ import {
   InfoCircleOutlined,
 } from "@ant-design/icons";
 import { timelineService } from "@/services/timelineService";
-import { TIMELINE_DEMO_DATA } from "@/services/timelineData";
 import type { LifeStoryResponse, TimelinePhase, TraceableItem } from "@/services/timelineTypes";
 import { DemoBadge } from "@/components";
+import type { DemoLevel } from "@/components";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -56,24 +56,51 @@ const SOURCE_CONFIG: Record<string, { color: string; label: string }> = {
   agent: { color: "magenta", label: "Agent" },
 };
 
+/** 从任意异常中提取可展示的失败原因（不吞异常，原因必须可见）。 */
+function describeError(err: unknown): string {
+  const anyErr = err as { response?: { status?: number; data?: { detail?: unknown } }; message?: string };
+  const status = anyErr?.response?.status;
+  const detail = anyErr?.response?.data?.detail;
+  if (typeof detail === "string" && detail) return status ? `HTTP ${status}：${detail}` : detail;
+  if (status) return `后端返回 HTTP ${status}`;
+  return anyErr?.message || "未知错误";
+}
+
 export default function TimelineDemo() {
-  const [data, setData] = useState<LifeStoryResponse>(TIMELINE_DEMO_DATA);
-  const [loading, setLoading] = useState(false);
+  // BC-20：初始 state 不含任何剧本数据，loading / error / success 三态互斥可判定。
+  const [data, setData] = useState<LifeStoryResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [showReport, setShowReport] = useState(false);
   const [tracedItem, setTracedItem] = useState<TraceableItem | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setLoading(true);
-    timelineService.lifeStory().then((res) => {
-      setData(res);
-      setLoading(false);
-    });
+    setError(null);
+    timelineService
+      .lifeStory()
+      .then((res) => {
+        setData(res);
+        setPhaseIndex(0);
+      })
+      .catch((err: unknown) => {
+        // 失败路径：写入错误态、清空数据，绝不回落剧本数据。
+        setData(null);
+        setError(describeError(err));
+      })
+      .finally(() => {
+        // 无论成功失败都必须结束 loading，避免永久 Spin 白屏。
+        setLoading(false);
+      });
   }, []);
 
-  const phase: TimelinePhase | undefined = data.phases[phaseIndex];
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  if (loading || !phase) {
+  // ---- 态 1：加载中 ----
+  if (loading) {
     return (
       <div style={{ textAlign: "center", padding: "120px 0" }}>
         <Spin size="large" tip="加载车辆生命故事..." />
@@ -81,10 +108,46 @@ export default function TimelineDemo() {
     );
   }
 
+  // ---- 态 2：失败（显式错误态 + 原因，不渲染任何剧本内容）----
+  if (error || !data) {
+    return (
+      <Result
+        status="error"
+        title="车辆生命故事加载失败"
+        subTitle={
+          <>
+            <div>无法从后端获取 /api/timeline/life-story 的数据，本页不展示任何演示/占位内容。</div>
+            <div style={{ marginTop: 8 }}>
+              <Text type="secondary">失败原因：{error ?? "后端未返回有效数据"}</Text>
+            </div>
+          </>
+        }
+        extra={<Button type="primary" onClick={load}>重试</Button>}
+      />
+    );
+  }
+
+  const phase: TimelinePhase | undefined = data.phases[phaseIndex];
+
+  // 数据成功返回但阶段为空：仍属数据问题，显式提示而非空转 loading。
+  if (!phase) {
+    return (
+      <Result
+        status="warning"
+        title="后端未返回任何生命阶段数据"
+        subTitle="接口调用成功，但 phases 为空，无法渲染时间线。"
+        extra={<Button type="primary" onClick={load}>重试</Button>}
+      />
+    );
+  }
+
+  // BC-20：角标分级由后端 data.demo_mode 驱动，禁止硬编码 level。
+  // demo_mode=true → L2b（持久虚构车）；false → L0（真数据，组件恒返回 null）。
+  const demoLevel: DemoLevel = data.demo_mode ? "L2b" : "L0";
+
   return (
     <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 16px 48px" }}>
-      {/* 本页是恒定 demo（后端 demo_mode 始终为 true，返回确定性剧本数据），标注属实 */}
-      <DemoBadge level="L2b" visible />
+      <DemoBadge level={demoLevel} visible={data.demo_mode} />
       {/* ===== Header ===== */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <Space>
@@ -93,7 +156,7 @@ export default function TimelineDemo() {
           </Title>
           <Text type="secondary">{data.vehicle.name} · {data.vehicle.brand} {data.vehicle.model}</Text>
         </Space>
-        <DemoBadge level="L2b" visible inline />
+        <DemoBadge level={demoLevel} visible={data.demo_mode} inline />
       </div>
 
       {/* ===== Year Slider ===== */}

@@ -21,10 +21,22 @@ def hash_password(raw: str) -> str:
 
 
 def verify_password(raw: str, hashed: str) -> bool:
+    """Verify a password against its hash.
+
+    Falls back to direct bcrypt.checkpm() when passlib's CryptContext
+    hits the known bcrypt-version incompatibility (``password cannot be
+    longer than 72 bytes`` caused by passlib reading ``bcrypt.__about__``
+    which was removed in bcrypt >= 4.2).
+    """
     try:
         return pwd_context.verify(raw, hashed)
     except Exception:
-        return False
+        # passlib/bcrypt version mismatch — use bcrypt directly
+        try:
+            import bcrypt
+            return bcrypt.checkpw(raw.encode("utf-8"), hashed.encode("utf-8"))
+        except Exception:
+            return False
 
 
 # ---------- JWT ----------

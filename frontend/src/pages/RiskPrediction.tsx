@@ -32,6 +32,7 @@ import {
   ExperimentOutlined,
 } from "@ant-design/icons";
 import { useCurrentVehicle } from "@/hooks";
+import DemoBadge from "@/components/DemoBadge";
 import { riskService } from "@/services";
 import type {
   RiskPrediction,
@@ -262,6 +263,9 @@ export default function RiskPrediction() {
           <Title level={3} style={{ margin: 0 }}>
             风险预测闭环
           </Title>
+          {/* 当前车辆为 seed 持久虚构车「小白」，预测基于演示数据 — 挂 L2b 角标修复 GOAI 红线2 正向失真。
+              TODO: 待后端 provenance 信封（R-01）落地后改为 level={provenance.badge_level} 驱动，不再硬编码。 */}
+          <DemoBadge level="L2b" inline />
           {scheduler?.running ? (
             <Badge status="processing" text="主动巡检运行中" />
           ) : (

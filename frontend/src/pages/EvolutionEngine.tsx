@@ -92,23 +92,30 @@ function HoloButton({
   children,
   onClick,
   loading,
+  disabled,
+  title,
   variant = "cyan",
   icon,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   loading?: boolean;
+  /** 置灰（如后端能力未实现，禁止伪造回执） */
+  disabled?: boolean;
+  title?: string;
   variant?: "cyan" | "purple" | "ghost";
   icon?: React.ReactNode;
 }) {
   const cls = variant === "purple" ? "holo-btn holo-btn-purple" : variant === "ghost" ? "holo-btn holo-btn-ghost" : "holo-btn";
+  const off = Boolean(loading || disabled);
   return (
     <button
       type="button"
       className={cls}
-      onClick={onClick}
-      disabled={loading}
-      style={{ opacity: loading ? 0.5 : 1, cursor: loading ? "not-allowed" : "pointer" }}
+      title={title}
+      onClick={off ? undefined : onClick}
+      disabled={off}
+      style={{ opacity: off ? 0.45 : 1, cursor: off ? "not-allowed" : "pointer" }}
     >
       {loading ? <SyncOutlined spin /> : icon}
       {children}
@@ -125,13 +132,11 @@ function DashboardTab({
   loading,
   onRunCycle,
   onSeedDemo,
-  running,
 }: {
   dashboard: EvolutionDashboard | null;
   loading: boolean;
   onRunCycle: () => void;
   onSeedDemo: () => void;
-  running: boolean;
 }) {
   if (loading && !dashboard) {
     return (
@@ -163,10 +168,10 @@ function DashboardTab({
     <div>
       {/* 操作栏 */}
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
-        <HoloButton variant="cyan" icon={<PlayCircleOutlined />} onClick={onRunCycle} loading={running}>
+        <HoloButton variant="cyan" icon={<PlayCircleOutlined />} onClick={onRunCycle}>
           运行进化周期
         </HoloButton>
-        <HoloButton variant="purple" icon={<ExperimentOutlined />} onClick={onSeedDemo} loading={running}>
+        <HoloButton variant="purple" icon={<ExperimentOutlined />} onClick={onSeedDemo}>
           种子演示数据
         </HoloButton>
         <HoloChip color={dashboard.engine_enabled ? "green" : "cyan"}>
@@ -622,6 +627,7 @@ function ReflectionTab() {
 function SkillEvolutionTab() {
   const [proposals, setProposals] = useState<SkillMutationProposal[]>([]);
   const [loading, setLoading] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -640,12 +646,19 @@ function SkillEvolutionTab() {
   }, [loadData]);
 
   const handleApprove = async (proposalId: string) => {
+    setApprovingId(proposalId);
     try {
-      await evolutionService.approveProposal(proposalId);
-      message.success("提案已审批通过");
-      loadData();
+      const res = await evolutionService.approveProposal(proposalId);
+      if (res.approved) {
+        message.success("提案已审批通过");
+        loadData();
+      } else {
+        message.warning(`审批未通过: ${res.status}`);
+      }
     } catch {
-      message.error("审批失败");
+      message.error("审批请求失败");
+    } finally {
+      setApprovingId(null);
     }
   };
 
@@ -726,8 +739,9 @@ function SkillEvolutionTab() {
             className="holo-btn holo-btn-ghost"
             style={{ padding: "4px 12px", fontSize: 12 }}
             onClick={() => handleApprove(record.proposal_id)}
+            disabled={approvingId === record.proposal_id}
           >
-            审批
+            {approvingId === record.proposal_id ? "审批中..." : "审批"}
           </button>
         ) : (
           <span className="holo-text-dim" style={{ fontSize: 12 }}>—</span>
@@ -737,7 +751,7 @@ function SkillEvolutionTab() {
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
         <HoloButton variant="ghost" icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</HoloButton>
         <span className="holo-text-dim" style={{ fontSize: 13 }}>技能变异提案 ({proposals.length})</span>
       </div>
@@ -894,7 +908,6 @@ export default function EvolutionEngine() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [dashboard, setDashboard] = useState<EvolutionDashboard | null>(null);
   const [loading, setLoading] = useState(false);
-  const [running, setRunning] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -912,36 +925,34 @@ export default function EvolutionEngine() {
     loadDashboard();
   }, [loadDashboard]);
 
-  const handleRunCycle = async () => {
-    setRunning(true);
-    try {
-      // /evolution 为演示页；runCycle 是桩，不产生真实进化结果。
-      // 不再用 result.summary（该字段不存在）谎报“执行完成”。
-      await evolutionService.runCycle();
-      // 演示页动作不真实写入，用 info（中性通知）而非 success（绿色对勾会夸大"成功"）。
-      message.info("进化周期已触发 · 演示模式");
-      loadDashboard();
-    } catch {
-      message.error("进化周期触发失败");
-    } finally {
-      setRunning(false);
-    }
-  };
+  const [cycleLoading, setCycleLoading] = useState(false);
+  const [seedLoading, setSeedLoading] = useState(false);
 
-  const handleSeedDemo = async () => {
-    setRunning(true);
+  const handleRunCycle = useCallback(async () => {
+    setCycleLoading(true);
     try {
-      const result = await evolutionService.seedDemo();
-      // result.seeded 是桩返回的样本数（演示页不真实写入）；
-      // 如实展示，不谎报"已植入"；用 info 而非 success 避免夸大"成功"。
-      message.info(`演示数据种子已生成 · 演示模式（样本 ${result.seeded} 条）`);
-      loadDashboard();
+      const res = await evolutionService.runCycle();
+      message.success(res.success ? `进化周期 ${res.cycle_id} 完成` : `周期执行: ${res.status}`);
+      loadDashboard(); // refresh dashboard
     } catch {
-      message.error("演示数据种子生成失败");
+      message.error("运行进化周期失败");
     } finally {
-      setRunning(false);
+      setCycleLoading(false);
     }
-  };
+  }, [loadDashboard]);
+
+  const handleSeedDemo = useCallback(async () => {
+    setSeedLoading(true);
+    try {
+      const res = await evolutionService.seedDemo();
+      message.success(`已种子 ${res.seeded} 条演示数据`);
+      loadDashboard(); // refresh dashboard
+    } catch {
+      message.error("种子演示数据失败");
+    } finally {
+      setSeedLoading(false);
+    }
+  }, [loadDashboard]);
 
   const tabItems = [
     {
@@ -953,7 +964,6 @@ export default function EvolutionEngine() {
           loading={loading}
           onRunCycle={handleRunCycle}
           onSeedDemo={handleSeedDemo}
-          running={running}
         />
       ),
     },

@@ -73,3 +73,53 @@ class GateStats(BaseModel):
         "carmodel:/agent/compliance/gate-stats",
         description="真实数据来源端点，便于溯源核对",
     )
+
+
+class ComplianceSample(BaseModel):
+    """单条脱敏样本（PIPL 范围内唯一合法的明细留存形式）。
+
+    ``masked`` 是占位符串（``[ID]`` / ``[PHONE]`` / …），原始问句不落盘、
+    不进日志、不可反推。
+    """
+
+    category: str = Field(description="命中类别（identity/geo/data_fraud/repair_mislead/safety_critical）")
+    masked: str = Field(description="脱敏后的占位符串，不可反推到自然人")
+    created_at: str | None = Field(None, description="留存时间（UTC ISO8601）")
+
+
+class ComplianceSamplesDrop(BaseModel):
+    """某类丢弃（fail-closed 丢弃）的累计计数与末次时间。"""
+
+    drops: int = 0
+    last_at: str | None = None
+
+
+class ComplianceSamples(BaseModel):
+    """合规闸门脱敏样本响应。
+
+    诚实数据纪律同 gate-stats：carModel 读不到真值时 ``available=False``、
+    ``samples=None``，前端显示「暂无数据」，绝不返回空列表冒充"没有拦截过"。
+    """
+
+    available: bool = True
+    source: str = Field(
+        "real",
+        description='"real" = 样本来自 carModel 真实脱敏留存；'
+                    '"unavailable" = 上游取不到，此时 samples 为 null，'
+                    "UI 必须显示「暂无数据」，不得填空列表。",
+    )
+    samples: list[ComplianceSample] | None = None
+    total_stored: int | None = None
+    total_dropped: int | None = None
+    coverage: float | None = Field(
+        None, description="留存率 = 留存/(留存+丢弃)，null 表示尚无任何样本"
+    )
+    retention_days: int | None = None
+    cap_per_category: int | None = None
+    placeholders: list[str] = Field(default_factory=list, description="前端渲染图例用占位符清单")
+    drop_kinds: list[str] = Field(default_factory=list, description="fail-closed 丢弃类型清单")
+    reason: str | None = Field(None, description="available=False 时的原因说明")
+    data_source: str = Field(
+        "carmodel:/agent/compliance/samples",
+        description="真实数据来源端点，便于溯源核对",
+    )

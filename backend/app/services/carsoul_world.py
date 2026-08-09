@@ -101,6 +101,24 @@ async def compliance_gate_stats():
     return await _request("GET", "/agent/compliance/gate-stats", timeout=10.0)
 
 
+async def compliance_samples(category: str | None = None, limit: int = 20):
+    """Fetch real **PII-masked** compliance-gate samples from carModel.
+
+    gate-stats 只回答"拦了多少次"，本端点回答"拦下的到底是什么样的提问"——
+    二者共用诚实数据纪律：carModel 读不到真值时返回 503，这里原样变成
+    ``{"error": ...}``，由上层显示"暂无数据"而**不是**空列表冒充"没有拦截过"。
+
+    样本是脱敏后的占位符串（``[ID]`` / ``[PHONE]`` / …），原始问句不落盘、
+    不进日志、不可反推；这是 PIPL 范围内唯一合法的明细留存形式。
+    """
+    params = {"limit": limit}
+    if category:
+        params["category"] = category
+    return await _request(
+        "GET", "/agent/compliance/samples", params=params, timeout=10.0
+    )
+
+
 async def agent_chat(
     query: str,
     *,

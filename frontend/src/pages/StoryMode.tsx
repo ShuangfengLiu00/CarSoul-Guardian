@@ -12,7 +12,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { TouchEvent as ReactTouchEvent } from "react";
-import { Button, Space, Typography, Progress, Tag, Row, Col, Tooltip } from "antd";
+import { Button, Space, Typography, Progress, Tag, Row, Col, Tooltip, Empty, Spin, Alert, Timeline } from "antd";
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -67,6 +67,9 @@ import {
   STORY_VEHICLE,
 } from "@/services/storyData";
 import { DemoBadge } from "@/components";
+import { useCurrentVehicle } from "@/hooks/useCurrentVehicle";
+import { digitalTwinService } from "@/services/digitalTwinService";
+import type { DigitalTwinLifeEvent, DigitalTwinMemory } from "@/services/digitalTwinService";
 
 const { Title, Text } = Typography;
 
@@ -998,6 +1001,185 @@ function Act5Content({ kiosk }: { kiosk: boolean }) {
 }
 
 // ============================================================
+// Real Life Story — 用本车真实 life-events + memories 拼叙事
+// ============================================================
+const EVENT_LABEL: Record<string, string> = {
+  PURCHASE: "购车",
+  TRAVEL: "出行",
+  UPGRADE: "升级",
+  MAINTENANCE: "保养",
+  WARNING: "预警",
+  RECOVERY: "恢复",
+  ACCIDENT: "事故",
+};
+
+const EVENT_COLOR: Record<string, string> = {
+  PURCHASE: "green",
+  TRAVEL: "blue",
+  UPGRADE: "geekblue",
+  MAINTENANCE: "cyan",
+  WARNING: "volcano",
+  RECOVERY: "green",
+  ACCIDENT: "red",
+};
+
+const MEM_TYPE_LABEL: Record<string, string> = {
+  warning: "预警",
+  recovery: "恢复",
+  emotion: "情绪",
+  milestone: "里程碑",
+  driving: "驾驶",
+};
+
+const MEM_TYPE_COLOR: Record<string, string> = {
+  warning: "red",
+  recovery: "green",
+  emotion: "magenta",
+  milestone: "gold",
+  driving: "default",
+};
+
+/** 把真实 life-events + memories 合并成一条按时间升序的真实叙事。 */
+function RealLifeStorySection({ kiosk }: { kiosk: boolean }) {
+  const { vehicle, loading: vehicleLoading } = useCurrentVehicle();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [events, setEvents] = useState<DigitalTwinLifeEvent[]>([]);
+  const [memories, setMemories] = useState<DigitalTwinMemory[]>([]);
+
+  useEffect(() => {
+    if (!vehicle) return;
+    let alive = true;
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      digitalTwinService.getLifeEvents(vehicle.id, 100),
+      digitalTwinService.getMemories(vehicle.id, 100),
+    ])
+      .then(([ev, mem]) => {
+        if (!alive) return;
+        setEvents(ev.items || []);
+        setMemories(mem.items || []);
+      })
+      .catch((e: unknown) => {
+        if (alive) {
+          const detail = (e as { response?: { data?: { detail?: string } } })
+            ?.response?.data?.detail;
+          setError(typeof detail === "string" ? detail : "真实数字生命数据取数失败");
+        }
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [vehicle]);
+
+  const titleSize = kiosk ? 18 : 14;
+
+  const merged = [
+    ...events.map((e) => ({
+      kind: "event" as const,
+      time: e.event_time,
+      node: (
+        <div>
+          <Space wrap>
+            <Tag color={EVENT_COLOR[e.event_type] || "default"}>
+              {EVENT_LABEL[e.event_type] || e.event_type}
+            </Tag>
+            <Text strong style={{ color: "#e8eef5", fontSize: kiosk ? 16 : 13 }}>
+              {e.title}
+            </Text>
+            {e.mileage != null && (
+              <Text type="secondary" style={{ fontSize: kiosk ? 12 : 10 }}>
+                {e.mileage.toLocaleString()} km
+              </Text>
+            )}
+          </Space>
+          {e.description && (
+            <div style={{ color: "#cfe8f7", fontSize: kiosk ? 14 : 12, lineHeight: 1.6, marginTop: 4 }}>
+              {e.description}
+            </div>
+          )}
+          <div style={{ color: "#5A6B82", fontSize: kiosk ? 12 : 10, marginTop: 2 }}>
+            {[e.location, e.event_time].filter(Boolean).join(" · ")}
+          </div>
+        </div>
+      ),
+    })),
+    ...memories.map((m) => ({
+      kind: "memory" as const,
+      time: m.created_time,
+      node: (
+        <div>
+          <Space wrap>
+            <Tag color={MEM_TYPE_COLOR[m.memory_type] || "default"}>
+              {MEM_TYPE_LABEL[m.memory_type] || m.memory_type}
+            </Tag>
+            {m.importance != null && (
+              <Text type="secondary" style={{ fontSize: kiosk ? 12 : 10 }}>
+                重要度 {m.importance}
+              </Text>
+            )}
+          </Space>
+          <div style={{ color: "#e8eef5", fontSize: kiosk ? 14 : 12, lineHeight: 1.6, marginTop: 4 }}>
+            {m.content}
+          </div>
+          <div style={{ color: "#5A6B82", fontSize: kiosk ? 12 : 10, marginTop: 2 }}>
+            {[m.source, m.created_time].filter(Boolean).join(" · ")}
+          </div>
+        </div>
+      ),
+    })),
+  ]
+    .filter((x) => !!x.time)
+    .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
+
+  return (
+    <div style={{ marginTop: kiosk ? 28 : 20 }}>
+      <Space style={{ marginBottom: 12 }}>
+        <Title level={4} style={{ margin: 0, color: "#e8eef5" }}>
+          本车真实数字生命叙事
+        </Title>
+        <Tag color="blue">life-events + memories 真实落盘</Tag>
+      </Space>
+
+      {vehicleLoading || (vehicle && loading) ? (
+        <div style={{ textAlign: "center", padding: 24 }}>
+          <Spin />
+        </div>
+      ) : !vehicle ? (
+        <Alert type="info" showIcon message="暂无可展示的车辆" description="请先选择一辆本车后再查看真实数字生命叙事。" />
+      ) : error ? (
+        <Alert type="warning" showIcon message="真实数字生命数据暂不可用" description={error} />
+      ) : merged.length === 0 ? (
+        <Alert
+          type="info"
+          showIcon
+          message="暂无数据"
+          description="本车尚未生成任何 life-events 或 memories（可经 generate-lifecycle 真实生成，或手动写入）。按诚实数据纪律不展示占位内容。"
+        />
+      ) : (
+        <Timeline
+          mode={kiosk ? "left" : "left"}
+          items={merged.map((x) => ({
+            color: x.kind === "event" ? "#00A8E8" : "#2A9D8F",
+            children: x.node,
+          }))}
+        />
+      )}
+
+      {merged.length > 0 && (
+        <Text type="secondary" style={{ fontSize: kiosk ? 12 : 11 }}>
+          共 {events.length} 条生命周期事件 · {memories.length} 条记忆 · 按时间升序排列（数据来源：carsoul_dev.db 真实落盘）
+        </Text>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // Main StoryMode Component
 // ============================================================
 export default function StoryMode() {
@@ -1282,6 +1464,9 @@ export default function StoryMode() {
           {actIndex + 1} / {ACT_COUNT}
         </Text>
       </div>
+
+      {/* 真实数字生命叙事：聚合本车 life-events + memories 真实落盘数据 */}
+      <RealLifeStorySection kiosk={kiosk} />
     </div>
   );
 }

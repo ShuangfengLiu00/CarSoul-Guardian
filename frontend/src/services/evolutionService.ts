@@ -1,20 +1,19 @@
 /**
- * PLACEHOLDER — evolutionService
- * ------------------------------------------------------------------
- * EvolutionEngine.tsx depends on this module, but the real backing
- * service (a world-model "evolution / skill-mutation" backend) is not
- * implemented yet. This stub keeps the app buildable and lets the page
- * render empty/safe states.
+ * Evolution Engine API service.
  *
- * The return shapes below mirror what EvolutionEngine.tsx renders.
- * All methods resolve to empty/safe defaults (no real data), which is
- * consistent with the demo badge on this page.
+ * Calls the /api/governance/evolution/* endpoints on the Guardian backend
+ * (:8001) to expose the Agent Evolution Engine — experience mining,
+ * reflection engine, skill evolution, and evolution timeline — to the
+ * frontend Dashboard.
  *
- * TODO: wire these methods to the CarSoul World Model (carModel) once an
- * evolution / timeline / skill-proposal endpoint exists.
+ * All endpoints are backed by carsoul_agent.observation.* (2858 lines of
+ * real engine logic).  Data lives in process memory; restart clears it.
  */
+import { get, post } from "../utils/request";
 
-// ---- Dashboard sub-shapes -------------------------------------------------
+// ------------------------------------------------------------------
+//  Types — Dashboard
+// ------------------------------------------------------------------
 export interface ExperienceStats {
   total_cases?: number;
   total_patterns?: number;
@@ -67,31 +66,45 @@ export interface EvolutionDashboard {
   engine_enabled: boolean;
   total_cycles: number;
   last_cycle: LastCycle | null;
+  /** 后端 get_dashboard() 多返回 optimization 摘要 */
+  optimization?: Record<string, unknown>;
 }
 
-// ---- Experience -----------------------------------------------------------
+// ------------------------------------------------------------------
+//  Types — Experience (aligned with experience_miner.to_dict())
+// ------------------------------------------------------------------
 export interface ExperienceCase {
-  id: string;
-  title: string;
-  summary: string;
-  tags: string[];
-  createdAt: string;
-}
-
-// ---- Experience patterns --------------------------------------------------
-export interface ExperiencePattern {
-  id: string;
-  name: string;
+  case_id: string;
+  vehicle_id?: string;
+  agent_id?: string;
+  task_type: string;
+  problem: string;
+  solution?: string;
+  result?: string;
   confidence: number;
-  description: string;
-  pattern_name?: string;
-  occurrence_count?: number;
-  // success_rate 在页面中按必填参与数值比较（p.success_rate > 0.7），故置为非可选。
-  success_rate: number;
-  common_solution?: string;
+  reuse_count?: number;
+  reuse_success_count?: number;
+  created_time: string;
+  pattern_tags?: string[];
 }
 
-// ---- Reflection reports ---------------------------------------------------
+// ------------------------------------------------------------------
+//  Types — Experience Patterns
+// ------------------------------------------------------------------
+export interface ExperiencePattern {
+  pattern_id?: string;
+  pattern_name: string;
+  description: string;
+  confidence: number;
+  success_rate: number;
+  occurrence_count?: number;
+  common_solution?: string;
+  task_types?: string[];
+}
+
+// ------------------------------------------------------------------
+//  Types — Reflection Reports (aligned with reflection_engine.to_dict())
+// ------------------------------------------------------------------
 export interface ReflectionAnalysis {
   strengths?: string[];
   weaknesses?: string[];
@@ -101,94 +114,178 @@ export interface ReflectionAnalysis {
 
 export interface ReflectionTaskLayer {
   task_success?: boolean;
+  user_problem_solved?: boolean;
+}
+
+export interface ReflectionReasoningLayer {
+  correct_agent_called?: boolean;
+  missing_data?: string[];
+  reasoning_errors?: string[];
+}
+
+export interface ReflectionResultLayer {
+  prediction_accurate?: boolean;
+  user_satisfied?: boolean;
 }
 
 export interface ReflectionReport {
-  id: string;
-  content: string;
-  createdAt: string;
-  reflection_id?: string;
-  task_type?: string;
+  reflection_id: string;
   agent_id?: string;
-  task_layer?: ReflectionTaskLayer;
-  improvement_priority?: string;
+  task_type?: string;
   timestamp?: string;
+  task_layer?: ReflectionTaskLayer;
+  reasoning_layer?: ReflectionReasoningLayer;
+  result_layer?: ReflectionResultLayer;
   analysis?: ReflectionAnalysis;
-  reasoning_layer?: {
-    reasoning_errors?: string[];
-    missing_data?: string[];
-  };
+  improvement_priority?: string;
+  /** Legacy fields kept for render compat */
+  id?: string;
+  content?: string;
+  createdAt?: string;
 }
 
-// ---- Skill mutation proposals ---------------------------------------------
-export type ProposalStatus = "pending" | "approved" | "rejected" | "proposed";
+// ------------------------------------------------------------------
+//  Types — Skill Mutation Proposals (aligned with skill_evolution_engine)
+// ------------------------------------------------------------------
+export type ProposalStatus = "pending" | "approved" | "rejected" | "proposed" | "testing" | "sandbox" | "deployed";
 
 export interface SkillMutationProposal {
-  id: string;
-  title: string;
-  rationale: string;
-  status: ProposalStatus;
-  impact: string;
-  // proposal_id 在页面中按必填直接传给 handleApprove(record.proposal_id)，故置为非可选。
   proposal_id: string;
+  skill_id: string;
+  mutation_type: string;
+  current_version: string;
+  proposed_version: string;
+  mutation_reason?: string;
+  approval_score: number;
+  status: ProposalStatus | string;
   changes?: string[];
   added_capabilities?: string[];
   test_result?: Record<string, unknown>;
   sandbox_result?: Record<string, unknown>;
+  /** Legacy fields kept for render compat */
+  id?: string;
+  title?: string;
+  rationale?: string;
+  impact?: string;
 }
 
-// ---- Timeline -------------------------------------------------------------
+// ------------------------------------------------------------------
+//  Types — Timeline (backend returns {timeline: [...]})
+// ------------------------------------------------------------------
 export type ImpactLevel = "high" | "medium" | "low" | (string & {});
 
 export interface EvolutionTimelineEntry {
-  id: string;
-  at: string;
-  event: string;
-  detail: string;
-  event_type: string;
-  timestamp?: string;
+  milestone_id?: string;
+  milestone_type?: string;
+  description: string;
+  timestamp: string;
   agent_id?: string;
+  impact_metrics?: Record<string, unknown>;
+  /** Render-compat aliases */
+  id?: string;
+  at?: string;
+  event?: string;
+  detail?: string;
+  event_type: string;  // always populated by timeline() mapper
+  title: string;       // always populated by timeline() mapper
   impact_level?: ImpactLevel;
-  title?: string;
-  description?: string;
 }
 
+// ------------------------------------------------------------------
+//  Types — Cycle Result
+// ------------------------------------------------------------------
 export interface CycleResult {
-  cycleId: string;
+  cycle_id: string;
   status: string;
-  changes: number;
+  success: boolean;
+  experiences_mined: number;
+  patterns_discovered: number;
+  reflections_generated: number;
+  skills_evolved: number;
+  improvements_generated: number;
+  summary: string;
+  started_at?: string;
+  completed_at?: string;
+  /** Legacy alias */
+  changes?: number;
+  /** Legacy alias */
+  cycleId?: string;
 }
 
-const EMPTY = <T,>(v: T): Promise<T> => Promise.resolve(v);
+// ------------------------------------------------------------------
+//  API methods
+// ------------------------------------------------------------------
+const EV = "/api/governance/evolution";
 
 export const evolutionService = {
-  experienceCases: (): Promise<{ cases: ExperienceCase[] }> =>
-    EMPTY<{ cases: ExperienceCase[] }>({ cases: [] }),
-  experiencePatterns: (): Promise<{ patterns: ExperiencePattern[] }> =>
-    EMPTY<{ patterns: ExperiencePattern[] }>({ patterns: [] }),
-  searchExperience: (_query: string): Promise<{ results: ExperienceCase[] }> =>
-    EMPTY<{ results: ExperienceCase[] }>({ results: [] }),
-  recentReflections: (_n: number): Promise<{ reflections: ReflectionReport[] }> =>
-    EMPTY<{ reflections: ReflectionReport[] }>({ reflections: [] }),
-  skillProposals: (_n: number): Promise<{ proposals: SkillMutationProposal[] }> =>
-    EMPTY<{ proposals: SkillMutationProposal[] }>({ proposals: [] }),
-  approveProposal: (_id: string) => EMPTY<{ ok: boolean }>({ ok: true }),
-  timeline: (_n: number): Promise<{ entries: EvolutionTimelineEntry[] }> =>
-    EMPTY<{ entries: EvolutionTimelineEntry[] }>({ entries: [] }),
-  dashboard: (): Promise<EvolutionDashboard> =>
-    EMPTY<EvolutionDashboard>({
-      experience: {},
-      reflection: {},
-      skill_evolution: {},
-      evaluation: {},
-      evolution_memory: {},
-      engine_enabled: false,
-      total_cycles: 0,
-      last_cycle: null,
-    }),
-  runCycle: (): Promise<CycleResult> =>
-    EMPTY<CycleResult>({ cycleId: "stub", status: "noop", changes: 0 }),
-  seedDemo: () => EMPTY<{ seeded: number }>({ seeded: 0 }),
+  // --- Dashboard ---
+  async dashboard(): Promise<EvolutionDashboard> {
+    return get<EvolutionDashboard>(`${EV}/dashboard`);
+  },
+
+  // --- Cycle control ---
+  async runCycle(): Promise<CycleResult> {
+    return post<CycleResult>(`${EV}/run-cycle`);
+  },
+
+  async seedDemo(): Promise<{ seeded: number; message?: string }> {
+    return post<{ seeded: number; message?: string }>(`${EV}/seed-demo`);
+  },
+
+  // --- Experience ---
+  async experienceCases(limit: number = 100): Promise<{ cases: ExperienceCase[] }> {
+    return get<{ cases: ExperienceCase[] }>(`${EV}/experience/cases?limit=${limit}`);
+  },
+
+  async experiencePatterns(): Promise<{ patterns: ExperiencePattern[] }> {
+    return get<{ patterns: ExperiencePattern[] }>(`${EV}/experience/patterns`);
+  },
+
+  /**
+   * Search similar experiences.
+   * Backend requires `task_type` as a query param; when the frontend
+   * passes a free-text query we send it as both task_type and problem
+   * so the backend's retrieve_similar() can do its best match.
+   */
+  async searchExperience(query: string): Promise<{ results: ExperienceCase[]; task_type: string; problem: string }> {
+    return get(`${EV}/experience/search?task_type=${encodeURIComponent(query)}&problem=${encodeURIComponent(query)}&limit=10`);
+  },
+
+  // --- Reflection ---
+  async recentReflections(limit: number = 20): Promise<{ reflections: ReflectionReport[] }> {
+    return get<{ reflections: ReflectionReport[] }>(`${EV}/reflection/recent?limit=${limit}`);
+  },
+
+  // --- Skill Evolution ---
+  async skillProposals(limit: number = 50): Promise<{ proposals: SkillMutationProposal[] }> {
+    return get<{ proposals: SkillMutationProposal[] }>(`${EV}/skill/proposals?limit=${limit}`);
+  },
+
+  async approveProposal(proposalId: string): Promise<{ approved: boolean; proposal_id: string; status: string }> {
+    return post(`${EV}/skill/approve`, { proposal_id: proposalId });
+  },
+
+  // --- Timeline ---
+  /**
+   * Backend returns `{timeline: EvolutionMilestone[]}`.
+   * We map it to `{entries: [...]}` so the existing TimelineTab render
+   * keeps working without changes.
+   */
+  async timeline(limit: number = 50): Promise<{ entries: EvolutionTimelineEntry[] }> {
+    const raw = await get<{ timeline: EvolutionTimelineEntry[] }>(`${EV}/memory/timeline?limit=${limit}`);
+    // Map backend field names to what the frontend renderer expects
+    const entries: EvolutionTimelineEntry[] = (raw.timeline || []).map((m) => ({
+      ...m,
+      id: m.milestone_id ?? m.id ?? "",
+      event_type: m.milestone_type ?? m.event_type ?? "milestone",
+      title: m.title ?? m.milestone_type ?? "事件",
+      description: m.description ?? m.detail ?? "",
+      at: m.timestamp ?? m.at ?? "",
+      timestamp: m.timestamp,
+      impact_level: (m.impact_metrics?.score as ImpactLevel) ?? m.impact_level ?? "medium",
+    }));
+    return { entries };
+  },
 };
 
 export default evolutionService;
