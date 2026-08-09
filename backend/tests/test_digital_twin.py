@@ -27,11 +27,14 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///./test_carsoul_v2.db")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from app.core.security import create_access_token  # noqa: E402
 from app.database.base import Base  # noqa: E402
 from app.database.connection import engine  # noqa: E402
 from app.main import app  # noqa: E402
 
-client = TestClient(app)
+# Guardian enforces global Bearer auth (app.core.auth.AuthMiddleware);
+# tests must present a valid token. Auth is wired in TASK009.
+client = TestClient(app, headers={"Authorization": f"Bearer {create_access_token('test-user')}"})
 
 # Ensure tables exist before tests run.
 Base.metadata.create_all(bind=engine)

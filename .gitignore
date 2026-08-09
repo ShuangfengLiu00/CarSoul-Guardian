@@ -129,13 +129,18 @@ goai-milestone/
 goai-scoring-battlemap/
 
 # ---------- Temporary/test/scratch files ----------
-test.html
-test.ts
-test.txt
-test1.txt
-test2.txt
-test3.txt
-evolutionService.ts
-index.ts
-backend/3.10
-对，你这个*.txt
+# 纪律：本段只允许「带路径前缀」的模式，禁止裸文件名。
+# 裸模式（如 index.ts / evolutionService.ts）会遮蔽全仓同名文件，
+# 曾导致 8 个 barrel 与 1 个业务 service 被静默排除、远端仓库 clone 后构建失败。
+# 新增规则前先执行：git check-ignore -v <路径> 逐条核验。
+/test.html
+/test.ts
+/test.txt
+/test[0-9].txt
+/scratch/
+
+# 临时验证脚本（一次性排查用，不入库）
+/backend/_t_*.py
+
+# 兜底：Python 包标识文件永不忽略
+!**/__init__.py

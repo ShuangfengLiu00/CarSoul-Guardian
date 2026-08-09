@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Bootstrap paths + logging as early as possible.
 import app  # noqa: F401  (ensures ai-agent path is on sys.path)
 from app.api import api_router
+from app.core.auth import AuthMiddleware
 from app.core.config import settings
 from app.database import init_db
 from app.utils.logger import logger
@@ -24,7 +25,9 @@ from app.utils.logger import logger
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting CarSoul Guardian backend [{}]", settings.ENVIRONMENT)
+    # 打 effective_env 而不是原始 ENVIRONMENT：设了 APP_ENV 时两者可能不一致，
+    # 日志里显示 development 而实际按生产运行，是会误导排障的。
+    logger.info("Starting CarSoul Guardian backend [{}]", settings.effective_env)
     logger.info("Effective DB: {}", settings.effective_database_url)
     try:
         init_db()
@@ -57,6 +60,11 @@ app = FastAPI(
     version="0.6.0",
     lifespan=lifespan,
 )
+
+# Auth middleware is registered BEFORE CORS so that CORS headers are still
+# attached to 401 responses. (Starlette makes the LAST-registered middleware
+# outermost, so CORS — added just below — wraps this one.)
+app.add_middleware(AuthMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

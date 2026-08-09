@@ -1,9 +1,12 @@
 """Backend smoke tests (TASK006)."""
 from fastapi.testclient import TestClient
 
+from app.core.security import create_access_token
 from app.main import app
 
-client = TestClient(app)
+# Guardian enforces global Bearer auth (app.core.auth.AuthMiddleware);
+# tests must present a valid token. Auth is wired in TASK009.
+client = TestClient(app, headers={"Authorization": f"Bearer {create_access_token('test-user')}"})
 
 
 def test_root():
