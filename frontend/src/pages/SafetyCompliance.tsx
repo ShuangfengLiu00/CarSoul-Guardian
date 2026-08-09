@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   Typography,
@@ -13,7 +13,10 @@ import {
   Statistic,
   Button,
   Modal,
+  Spin,
 } from "antd";
+import { safetyService } from "@/services/safetyService";
+import type { GateStatsResponse, GateCategoryKey } from "@/services/safetyService";
 import {
   SafetyCertificateOutlined,
   LockOutlined,
@@ -213,6 +216,124 @@ function ComplianceCard({
   );
 }
 
+/** 合规闸门真实拦截计数面板 —— 严格按后端诚实数据纪律渲染。 */
+function GateStatsPanel() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<GateStatsResponse | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    safetyService
+      .gateStats()
+      .then((data) => {
+        if (alive) setStats(data);
+      })
+      .catch((e: unknown) => {
+        if (alive) {
+          const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+          setError(typeof detail === "string" ? detail : "合规计数取数失败");
+        }
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ textAlign: "center", padding: 24 }}>
+          <Spin />
+        </div>
+      </Card>
+    );
+  }
+
+  // 真实计数取不到：后端 unavailable / payload 非法 / 网络失败 —— 绝不回填 0，整卡显示暂不可用。
+  const unavailable = !stats || stats.data_status?.code !== "ok_carmodel_gate_stats";
+
+  if (unavailable) {
+    const reason = stats?.data_status?.detail || error || "合规计数暂不可用";
+    return (
+      <Card
+        title={
+          <Space>
+            <SafetyCertificateOutlined />
+            合规闸门真实拦截计数
+          </Space>
+        }
+        style={{ marginBottom: 16 }}
+      >
+        <Alert type="info" showIcon message="合规计数暂不可用" description={reason} />
+      </Card>
+    );
+  }
+
+  const categories: { key: GateCategoryKey; label: string; refuse: boolean }[] = [
+    { key: "identity", label: "身份信息索取拦截", refuse: true },
+    { key: "geo", label: "位置/轨迹索取拦截", refuse: true },
+    { key: "data_fraud", label: "伪造/篡改车辆数据诱导拦截", refuse: true },
+    { key: "repair_mislead", label: "危险自修诱导拦截", refuse: true },
+    // safety_critical 处置是 safety_disclaim（免责+导向专业检修），并非 refuse 拦截，措辞需区分。
+    { key: "safety_critical", label: "安全结论索取（免责引导）", refuse: false },
+  ];
+
+  const degraded = stats.storage === "memory" || !!stats.degraded_reason;
+
+  return (
+    <Card
+      title={
+        <Space>
+          <SafetyCertificateOutlined />
+          合规闸门真实拦截计数
+        </Space>
+      }
+      extra={
+        <Tag color={degraded ? "orange" : "green"}>
+          {degraded ? "计数可能不全" : "真实累计"}
+        </Tag>
+      }
+      style={{ marginBottom: 16 }}
+    >
+      <Row gutter={[16, 16]}>
+        {categories.map((c) => {
+          const v = stats[c.key];
+          return (
+            <Col xs={12} sm={8} md={4} key={c.key}>
+              <Statistic
+                title={c.label}
+                // null（取不到）必须显示「暂无数据」，绝不用 0 冒充「从未触发」。
+                value={v ?? 0}
+                formatter={(val) => (v === null ? <Text type="secondary">暂无数据</Text> : val)}
+                valueStyle={{ color: c.refuse ? undefined : "#f59e0b" }}
+              />
+            </Col>
+          );
+        })}
+      </Row>
+      <Divider style={{ margin: "12px 0" }} />
+      <Space direction="vertical" size={2} style={{ width: "100%" }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          统计窗口：自 {stats.since || "尚无拦截记录"} 起 · 最近一次：{stats.updated_at || "—"}
+        </Text>
+        <Text type="secondary" style={{ fontSize: 12, fontFamily: "monospace" }}>
+          数据来源：{stats.data_source}
+        </Text>
+        {degraded && (
+          <Text type="warning" style={{ fontSize: 12 }}>
+            注意：{stats.degraded_reason || "计数链路降级，该值可能偏小且重启清零"}
+          </Text>
+        )}
+      </Space>
+    </Card>
+  );
+}
+
 export default function SafetyCompliance() {
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
 
@@ -236,13 +357,16 @@ export default function SafetyCompliance() {
         </Row>
       </Card>
 
-      {/* Quick stats */}
+      {/* 真实合规闸门拦截计数（接 carModel 真实运行时计数，绝不硬编码） */}
+      <GateStatsPanel />
+
+      {/* Quick stats —— 由静态声明数组实时计数，避免写死数字 */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card>
             <Statistic
               title="合规条目"
-              value={17}
+              value={dataSafetyItems.length + aiSafetyItems.length + vehicleSafetyItems.length + privacyItems.length}
               prefix={<SafetyCertificateOutlined />}
               suffix={<Tag color="success" style={{ fontSize: 12 }}>全部已合规</Tag>}
             />
@@ -252,7 +376,7 @@ export default function SafetyCompliance() {
           <Card>
             <Statistic
               title="数据安全"
-              value={4}
+              value={dataSafetyItems.length}
               suffix="项"
               prefix={<LockOutlined />}
             />
@@ -262,7 +386,7 @@ export default function SafetyCompliance() {
           <Card>
             <Statistic
               title="AI 安全"
-              value={5}
+              value={aiSafetyItems.length}
               suffix="项"
               prefix={<RobotOutlined />}
             />
@@ -272,7 +396,7 @@ export default function SafetyCompliance() {
           <Card>
             <Statistic
               title="法律法规"
-              value={4}
+              value={privacyItems.length}
               suffix="项"
               prefix={<FileProtectOutlined />}
             />
