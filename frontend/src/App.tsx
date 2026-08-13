@@ -19,6 +19,11 @@ import {
   Console,
   MemoryOcean,
   SensorOverview,
+  CockpitView,
+  TravelMap,
+  VehicleProfile,
+  BuyAdvisor,
+  CabinCompanion,
 } from "@/pages/index";
 
 export default function App() {
@@ -32,6 +37,7 @@ export default function App() {
       {/* ===== Main routes (Ant Design layout) ===== */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/twin3d" element={<CockpitView />} />
         <Route path="/agent" element={<AgentChat />} />
         <Route path="/vehicle" element={<VehicleArchive />} />
         <Route path="/life" element={<VehicleLifeHome />} />
@@ -44,6 +50,10 @@ export default function App() {
         <Route path="/sensors" element={<SensorOverview />} />
         <Route path="/governance" element={<Governance />} />
         <Route path="/timeline" element={<TimelineDemo />} />
+        <Route path="/travel" element={<TravelMap />} />
+        <Route path="/profile" element={<VehicleProfile />} />
+        <Route path="/buy" element={<BuyAdvisor />} />
+        <Route path="/cabin" element={<CabinCompanion />} />
         <Route path="/portal" element={<Console />} />
         {/* Unique "holographic" concept pages kept (not 3D / chat / health duplicates) */}
         <Route path="/memory" element={<MemoryOcean />} />
