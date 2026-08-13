@@ -45,5 +45,9 @@ class KnowledgeStatsResponse(BaseModel):
     chunk_count: int
     backend: str
     embedder: str
+    embedder_model: str = ""
+    # True iff the embedder is a real semantic model (not the offline hash
+    # fallback). Surfaced to the UI so retrieval quality is never over-claimed.
+    semantic: bool = False
     docs_dir: str
     ready: bool

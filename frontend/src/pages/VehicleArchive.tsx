@@ -49,7 +49,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { vehicleService } from "@/services";
-import { useCurrentVehicle } from "@/hooks";
+import { useCurrentVehicle, useRole, ROLE_DISCLOSURE, ROLE_LABELS } from "@/hooks";
 import DemoBadge from "@/components/DemoBadge";
 import type {
   VehicleArchive,
@@ -278,6 +278,9 @@ interface TabProps {
 function HealthReportTab({ archive }: TabProps) {
   const health = archive.latest_health;
   const score = archive.health_score;
+  // 全局客户角色 → 子系统底层分数仅 OEM 可见
+  const { role } = useRole();
+  const d = ROLE_DISCLOSURE[role];
 
   const subsystems = useMemo(() => {
     if (!health) return [];
@@ -352,6 +355,7 @@ function HealthReportTab({ archive }: TabProps) {
           </Card>
         </Col>
 
+        {d.showTechnical && (
         <Col xs={24} md={16}>
           <Card className="cs-card" title={<Space><DashboardOutlined /> 各子系统分数</Space>}>
             <Row gutter={[16, 24]}>
@@ -378,6 +382,7 @@ function HealthReportTab({ archive }: TabProps) {
             </Row>
           </Card>
         </Col>
+        )}
       </Row>
 
       <Card
@@ -652,6 +657,9 @@ function MaintenanceTab({ archive }: TabProps) {
 // ---- Driving Behavior Tab ----
 function DrivingBehaviorTab({ archive }: TabProps) {
   const behaviors = archive.driving_behaviors;
+  // 全局客户角色 → 平均安全/能耗评分与急驾驶事件属内部 KPI，仅非 owner/dealer 可见
+  const { role } = useRole();
+  const d = ROLE_DISCLOSURE[role];
 
   const summary = useMemo(() => {
     if (behaviors.length === 0) return null;
@@ -818,6 +826,7 @@ function DrivingBehaviorTab({ archive }: TabProps) {
               />
             </Card>
           </Col>
+          {d.showInternalKpi && (
           <Col xs={12} md={6}>
             <Card className="cs-card">
               <Statistic
@@ -830,6 +839,8 @@ function DrivingBehaviorTab({ archive }: TabProps) {
               />
             </Card>
           </Col>
+          )}
+          {d.showInternalKpi && (
           <Col xs={12} md={6}>
             <Card className="cs-card">
               <Statistic
@@ -842,6 +853,8 @@ function DrivingBehaviorTab({ archive }: TabProps) {
               />
             </Card>
           </Col>
+          )}
+          {d.showInternalKpi && (
           <Col xs={12} md={6}>
             <Card className="cs-card">
               <Statistic
@@ -853,6 +866,7 @@ function DrivingBehaviorTab({ archive }: TabProps) {
               />
             </Card>
           </Col>
+          )}
           <Col xs={12} md={6}>
             <Card className="cs-card">
               <Statistic
@@ -1025,6 +1039,9 @@ function AlertsTab({ archive, onAction, updatingIds }: AlertsTabProps) {
 
 // ---- Ownership Tab ----
 function OwnershipTab({ archive }: TabProps) {
+  // 全局客户角色 → 所有权成交价属内部 KPI，owner/dealer 不可见
+  const { role } = useRole();
+  const d = ROLE_DISCLOSURE[role];
   const columns: TableColumnsType<OwnershipRecord> = [
     {
       title: "车主",
@@ -1058,20 +1075,24 @@ function OwnershipTab({ archive }: TabProps) {
       width: 120,
       render: (v: string) => fmtDate(v),
     },
-    {
-      title: "购买价格",
-      dataIndex: "purchase_price",
-      key: "purchase_price",
-      width: 120,
-      render: (v: number) => fmtCost(v),
-    },
-    {
-      title: "出售价格",
-      dataIndex: "sale_price",
-      key: "sale_price",
-      width: 120,
-      render: (v: number) => fmtCost(v),
-    },
+    ...(d.showInternalKpi
+      ? [
+          {
+            title: "购买价格",
+            dataIndex: "purchase_price",
+            key: "purchase_price",
+            width: 120,
+            render: (v: number) => fmtCost(v),
+          },
+          {
+            title: "出售价格",
+            dataIndex: "sale_price",
+            key: "sale_price",
+            width: 120,
+            render: (v: number) => fmtCost(v),
+          },
+        ]
+      : []),
     {
       title: "转移时里程",
       dataIndex: "mileage_at_transfer",
@@ -1106,12 +1127,25 @@ function OwnershipTab({ archive }: TabProps) {
 // ---- Digital Twin Tab ----
 function DigitalTwinTab({ archive }: TabProps) {
   const twin = archive.digital_twin;
+  // 全局客户角色 → 数字孪生（模型版本 / 遥测 / 配置）属底层技术参数，仅 OEM 可见
+  const { role } = useRole();
+  const d = ROLE_DISCLOSURE[role];
 
   if (!twin) {
     return (
       <Empty
         image={<ApartmentOutlined style={{ fontSize: 48, color: "#9ca3af" }} />}
         description="该车辆暂未创建数字孪生模型"
+      />
+    );
+  }
+
+  // 数字孪生属底层技术参数，非 OEM 角色直接收口为空态，不做字段级泄露
+  if (!d.showTechnical) {
+    return (
+      <Empty
+        image={<ApartmentOutlined style={{ fontSize: 48, color: "#9ca3af" }} />}
+        description="数字孪生技术参数（模型版本 / 遥测 / 配置）仅对 OEM 角色开放"
       />
     );
   }
@@ -1731,6 +1765,9 @@ function ServiceOrdersTab({ vehicleId }: ServiceOrdersTabProps) {
 
 export default function VehicleArchive() {
   const { vehicle, loading: vehicleLoading, refresh: refreshVehicle } = useCurrentVehicle();
+  // 全局客户角色 → 差异化披露策略（切换角色后本页字段集随之变化）
+  const { role } = useRole();
+  const d = ROLE_DISCLOSURE[role];
   const [archive, setArchive] = useState<VehicleArchive | null>(null);
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
@@ -1880,6 +1917,15 @@ export default function VehicleArchive() {
 
   return (
     <div>
+      {/* 客户角色视角横幅：切换角色后文案与下方字段集同步变化 */}
+      <AntAlert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message={`当前视角：${ROLE_LABELS[role]}`}
+        description={d.perspective}
+      />
+
       {/* Header */}
       <Space style={{ justifyContent: "space-between", width: "100%", marginBottom: 16 }} wrap>
         <Space align="center">

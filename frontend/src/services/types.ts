@@ -616,6 +616,8 @@ export interface AgentChatRequest {
   user: string;
   message: string;
   session_id?: string;
+  /** Guardian 整数车辆 ID（前端经 useCurrentVehicle 透传），由后端翻译成 carModel 的 CSxxx */
+  vehicle_id?: number;
 }
 
 /** 守护闭环单步(感知→诊断→风险→建议→执行) */
@@ -876,6 +878,12 @@ export interface HealthOverview {
    * 历史版本后端硬编码 92，那正是要根除的东西。
    */
   health_score: number | null;
+  /**
+   * carModel 世界模型对该仿真车的 SOH 健康评估(0-100)。**与 VHS 车辆健康分是不同定义**，
+   * 仅用于「世界模型引擎健康分」展示，不可等同于车辆真实车况。
+   * overview 端点不计算 VHS，故 health_score 恒为 null，世界模型值在此字段。
+   */
+  world_model_soh_health?: number | null;
   /** 健康分的来源与口径，便于用户判断这个数字可不可信 */
   health_score_basis?: string | null;
   agent_status: string;
@@ -931,6 +939,9 @@ export interface KnowledgeStats {
   chunk_count: number;
   backend: string;
   embedder: string;
+  embedder_model?: string;
+  /** 是否为真·语义检索（false = 离线哈希，非语义） */
+  semantic?: boolean;
   docs_dir: string;
   ready: boolean;
 }

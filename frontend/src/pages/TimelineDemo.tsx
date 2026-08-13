@@ -347,10 +347,10 @@ function AgentCollaborationView({ collab }: { collab: NonNullable<TimelinePhase[
           <Tag color="red">已触发</Tag>
         </Space>
       }
-      style={{ marginBottom: 24, borderRadius: 12, border: "1px solid #ffccc7" }}
+      style={{ marginBottom: 24, borderRadius: 12, border: "1px solid rgba(255,56,96,0.35)" }}
     >
       {/* Trigger reason */}
-      <Card size="small" style={{ marginBottom: 16, background: "#fff2f0", border: "1px solid #ffccc7" }}>
+      <Card size="small" style={{ marginBottom: 16, background: "rgba(255,56,96,0.12)", border: "1px solid rgba(255,56,96,0.35)" }}>
         <Text strong><AlertOutlined /> 触发原因：</Text>
         <br />
         <Text>{collab.trigger_reason}</Text>
@@ -484,9 +484,9 @@ function ReportCard({
   return (
     <div>
       {/* Report Header */}
-      <Card style={{ marginBottom: 24, borderRadius: 12, textAlign: "center", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}>
-        <Title level={2} style={{ color: "#fff", margin: 0 }}>终幕报告</Title>
-        <Text style={{ color: "rgba(255,255,255,0.8)" }}>一辆车的一生 · 健康评估与价值预测</Text>
+      <Card style={{ marginBottom: 24, borderRadius: 12, textAlign: "center", background: "var(--ink-850)", borderColor: "var(--line)" }}>
+        <Title level={2} style={{ color: "var(--text-100)", margin: 0 }}>终幕报告</Title>
+        <Text style={{ color: "var(--text-300)" }}>一辆车的一生 · 健康评估与价值预测</Text>
       </Card>
 
       {/* Key Metrics */}

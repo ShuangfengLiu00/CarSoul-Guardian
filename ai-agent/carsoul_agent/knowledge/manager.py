@@ -55,6 +55,7 @@ class KnowledgeBase:
         collection_name: str = "carsoul_guardian",
         api_key: str = "",
         api_base: str = "",
+        model: str | None = None,
         auto_load: bool = True,
         yaml_loader: YamlKnowledgeLoader | None = None,
     ) -> None:
@@ -62,7 +63,7 @@ class KnowledgeBase:
         self._persist_path = persist_path
         self._collection_name = collection_name
         self._embedder = embedder or default_embedding_provider(
-            api_key=api_key, base_url=api_base
+            api_key=api_key, base_url=api_base, model=model
         )
         self._store = store or default_vector_store(
             persist_path=persist_path or "./ai-agent/memory/vector_store",
@@ -88,7 +89,10 @@ class KnowledgeBase:
         with self._lock:
             if self._loaded:
                 return
-            # If a persistent store already has data (ChromaDB), trust it.
+            # If a persistent store already has data (ChromaDB), trust it —
+            # BUT only if it was built with the *same* embedder. Switching to
+            # a real semantic embedder must invalidate the old (hash) vectors,
+            # otherwise we'd silently retrieve in the wrong vector space.
             if self._store.count() == 0:
                 docs = MarkdownLoader.load_dir(self._docs_dir)
                 # Also load structured YAML knowledge entries.
@@ -97,23 +101,45 @@ class KnowledgeBase:
                 docs.extend(yaml_docs)
                 if docs:
                     self.ingest_documents(docs, show_progress=False)
+                self._store.set_embedder_tag(self._embedder.tag)
             else:
-                logger.info(
-                    "Persistent store already has %d chunks; skipping re-index.",
-                    self._store.count(),
-                )
-                self._chunk_count = self._store.count()
+                existing = self._store.get_embedder_tag()
+                if existing != self._embedder.tag:
+                    logger.warning(
+                        "Embedder changed (%s -> %s); rebuilding index with "
+                        "the new embeddings to avoid stale-vector retrieval.",
+                        existing,
+                        self._embedder.tag,
+                    )
+                    self._store.clear()
+                    self._store.set_embedder_tag(self._embedder.tag)
+                    docs = MarkdownLoader.load_dir(self._docs_dir)
+                    yaml_docs = self._yaml_loader.load_all()
+                    self._yaml_count = len(yaml_docs)
+                    docs.extend(yaml_docs)
+                    if docs:
+                        self.ingest_documents(docs, show_progress=False)
+                    self._chunk_count = self._store.count()
+                else:
+                    logger.info(
+                        "Persistent store already has %d chunks (embedder=%s); "
+                        "skipping re-index.",
+                        self._store.count(),
+                        existing,
+                    )
+                    self._chunk_count = self._store.count()
             # Always (re)build the in-memory BM25 index from stored chunks
             # so keyword search works regardless of backend.
             self._rebuild_bm25()
             self._loaded = True
             logger.info(
                 "KnowledgeBase ready: %d chunks (%d YAML entries), "
-                "backend=%s, embedder=%s",
+                "backend=%s, embedder=%s, semantic=%s",
                 self._chunk_count,
                 self._yaml_count,
                 self._store.name,
                 self._embedder.name,
+                self._embedder.name != "hash",
             )
 
     def _rebuild_bm25(self) -> None:
@@ -233,6 +259,9 @@ class KnowledgeBase:
             "yaml_entry_count": self._yaml_count,
             "backend": self._store.name,
             "embedder": self._embedder.name,
+            "embedder_model": getattr(self._embedder, "_model", "")
+            or self._embedder.name,
+            "semantic": self._embedder.name != "hash",
             "docs_dir": self._docs_dir,
             "ready": self.ready,
         }
@@ -271,6 +300,7 @@ def get_knowledge_base(
     collection_name: str = "carsoul_guardian",
     api_key: str = "",
     api_base: str = "",
+    model: str | None = None,
 ) -> KnowledgeBase:
     """Return the shared KnowledgeBase singleton (lazy, thread-safe).
 
@@ -287,6 +317,7 @@ def get_knowledge_base(
                     collection_name=collection_name,
                     api_key=api_key,
                     api_base=api_base,
+                    model=model,
                 )
     return _kb_instance
 

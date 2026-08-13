@@ -235,8 +235,15 @@ export default function KnowledgeBase() {
           <Card className="cs-card" loading={statsLoading}>
             <Statistic
               title="嵌入模型"
-              value={stats?.embedder ?? "—"}
+              value={stats?.embedder_model || stats?.embedder || "—"}
             />
+            <div style={{ marginTop: 6 }}>
+              {stats?.semantic ? (
+                <Tag color="green">语义检索</Tag>
+              ) : (
+                <Tag color="orange">非语义（离线哈希）</Tag>
+              )}
+            </div>
           </Card>
         </Col>
         <Col span={6}>

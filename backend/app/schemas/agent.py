@@ -9,6 +9,9 @@ class AgentChatRequest(BaseModel):
     user: str = Field(..., description="用户标识/用户名")
     message: str = Field(..., min_length=1, description="用户消息")
     session_id: str | None = Field(None, description="可选会话 ID，用于多轮记忆")
+    vehicle_id: int | None = Field(
+        None, description="Guardian 整数车辆 ID；由 agent_service 翻译成 carModel 的 CSxxx"
+    )
 
 
 class AgentChatResponse(BaseModel):

@@ -238,13 +238,19 @@ async def overview(
     # 与 carModel 自己的量纲防御保持一致（agent/agent.py:186）：万一上游改成
     # 百分比量纲，按百分比处理，绝不静默乘出一个 8080 分。
     score = float(raw_score)
-    health_score = round(score) if score > 1.0 else round(score * 100)
+    world_model_soh_health = round(score) if score > 1.0 else round(score * 100)
 
+    # 收敛 P1：carModel 世界模型的 SOH 健康是**另一套定义**，不能占用 health_score
+    # 字段（那是 VHS 车辆健康分的保留字段）。此处写入 world_model_soh_health，
+    # health_score 恒为 None（VHS 由 /api/vehicle/{id}/health-score 提供）。
     return HealthOverview(
-        health_score=health_score,
+        health_score=None,
+        world_model_soh_health=world_model_soh_health,
         health_score_basis=(
-            "carModel state_summary.health_score × 100"
-            "（口径 = clamp((SOH−0.60)/0.40, 0, 1)，见 carModel encoder/state_encoder.py:153）"
+            "world_model_soh_health = carModel state_summary.health_score × 100"
+            "（口径 = clamp((SOH−0.60)/0.40, 0, 1)，见 carModel encoder/state_encoder.py:153）。"
+            "这是世界模型对仿真车的 SOH 健康评估，与 VHS 车辆健康分是不同定义，"
+            "仅供『世界模型引擎健康分』展示，不可等同于车辆真实车况。"
         ),
         agent_status=agent_status,
         agent_link=agent_link,
@@ -255,10 +261,10 @@ async def overview(
         data_status=DataStatus(
             code="ok_carmodel_state",
             detail=(
-                f"健康分与告警均来自 carModel {_STATE_SOURCE} 的真实车况"
+                f"world_model_soh_health 与告警来自 carModel {_STATE_SOURCE} 的真实车况"
                 f"（车辆 {vehicle_id}"
                 + ("，来自 CARSOUL_WORLD_DEFAULT_VEHICLE_ID 配置的缺省车" if used_default else "")
-                + "）。"
+                + "）；车辆健康分(VHS) 请见 /api/vehicle/{vehicle_id}/health-score。"
             ),
         ),
     )

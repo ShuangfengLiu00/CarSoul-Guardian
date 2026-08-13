@@ -32,6 +32,18 @@ class EmbeddingProvider(ABC):
     name: str = "base"
     dimension: int = 0
 
+    @property
+    def tag(self) -> str:
+        """Stable identity string used to detect embedder changes.
+
+        If the configured ``model`` (or provider name) differs from what
+        the persisted vector store was built with, the store must be
+        re-indexed — otherwise retrieval would silently run against
+        stale vectors from a different embedding space.
+        """
+        model = getattr(self, "_model", None)
+        return f"{self.name}:{model}" if model else self.name
+
     @abstractmethod
     def embed(self, text: str) -> list[float]:
         """Return an L2-normalised embedding for ``text``."""
@@ -43,15 +55,31 @@ class EmbeddingProvider(ABC):
 
 # ---------------------------------------------------------------------------
 class OpenAIEmbedding(EmbeddingProvider):
-    """OpenAI ``text-embedding-3-small`` (1536-dim, cheap, multilingual)."""
+    """OpenAI-compatible embedding API (multilingual, vector search ready).
+
+    Works with any OpenAI-compatible endpoint — OpenAI itself, Azure,
+    or China-available providers such as 智谱 (GLM) / 通义千问 / 火山方舟
+    — as long as ``base_url`` points at a ``/v1/embeddings``-compatible
+    service. The model id is configurable (see ``EMBEDDING_MODEL``) so a
+    deployment is not hard-pinned to ``text-embedding-3-small``.
+    """
 
     name = "openai"
+    # Dimension depends on the chosen model; resolved lazily after the
+    # first call. We default the *declared* dimension to 1536 (the common
+    # case for text-embedding-3-small) but always trust the API response.
     dimension = 1536
     _MODEL = "text-embedding-3-small"
 
-    def __init__(self, api_key: str, base_url: str | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str | None = None,
+        model: str | None = None,
+    ) -> None:
         self._api_key = api_key
         self._base_url = base_url or None
+        self._model = model or self._MODEL
         self._client = None
         try:
             from openai import OpenAI  # type: ignore
@@ -67,11 +95,24 @@ class OpenAIEmbedding(EmbeddingProvider):
     def embed(self, text: str) -> list[float]:
         return self.embed_batch([text])[0]
 
+    # 各家 embedding 接口对单次 input 条数上限不同：
+    #   通义 text-embedding-v3 ≤10、智谱 embedding-3 ≤64、OpenAI ≤2048。
+    # 取最保守的 10 作为通用安全值，保证任意供应商都不超限；
+    # 若切到智谱/OpenAI 想提速，可在此调大（不影响正确性）。
+    _BATCH_LIMIT = 10
+
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         if not self._client:
             raise RuntimeError("OpenAI embedding client not available")
-        resp = self._client.embeddings.create(model=self._MODEL, input=texts)
-        return [d.embedding for d in resp.data]
+        all_embeddings: list[list[float]] = []
+        for i in range(0, len(texts), self._BATCH_LIMIT):
+            batch = texts[i : i + self._BATCH_LIMIT]
+            resp = self._client.embeddings.create(model=self._model, input=batch)
+            all_embeddings.extend(d.embedding for d in resp.data)
+        # Trust the model's real dimension (e.g. 智谱 embedding-3 → 2048).
+        if all_embeddings and len(all_embeddings[0]) != self.dimension:
+            self.dimension = len(all_embeddings[0])
+        return all_embeddings
 
 
 # ---------------------------------------------------------------------------
@@ -131,17 +172,29 @@ class HashEmbedding(EmbeddingProvider):
 def default_embedding_provider(
     api_key: str = "",
     base_url: str = "",
+    model: str | None = None,
 ) -> EmbeddingProvider:
     """Pick the best available embedding backend.
 
-    Prefers OpenAI when a key is configured; otherwise falls back to the
+    Prefers an OpenAI-compatible semantic embedding when a key is configured
+    AND the ``openai`` SDK is installed; otherwise falls back to the
     zero-dependency HashEmbedding so the knowledge base is always usable.
+
+    ``model`` selects the embedding model id (defaults to
+    ``text-embedding-3-small``). Pass a China-available model id (e.g.
+    智谱 ``embedding-3`` / 通义 ``text-embedding-v3``) together with the
+    matching ``base_url`` to run true semantic retrieval on local infra.
     """
     if api_key:
-        provider = OpenAIEmbedding(api_key=api_key, base_url=base_url or None)
+        provider = OpenAIEmbedding(
+            api_key=api_key, base_url=base_url or None, model=model
+        )
         if provider.available:
-            logger.info("RAG embedding backend: openai (text-embedding-3-small)")
+            logger.info("RAG embedding backend: openai (model=%s)", provider._model)
             return provider
-        logger.warning("OpenAI key set but client unavailable; using hash embedding.")
-    logger.info("RAG embedding backend: hash (offline)")
+        logger.warning(
+            "OpenAI key set but `openai` SDK unavailable; using hash embedding. "
+            "Install `openai` to enable true semantic retrieval."
+        )
+    logger.info("RAG embedding backend: hash (offline, non-semantic)")
     return HashEmbedding()

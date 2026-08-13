@@ -47,7 +47,7 @@ export function GlassPanel({
             alignItems: 'center',
             gap: 10,
             padding: '14px 20px',
-            borderBottom: '1px solid var(--holo-glass-border)',
+            borderBottom: '1px solid var(--line)',
             fontSize: 15,
             fontWeight: 700,
             letterSpacing: '0.02em',
@@ -56,7 +56,7 @@ export function GlassPanel({
           }}
         >
           {icon && (
-            <span style={{ display: 'inline-flex', color: 'var(--holo-cyan)', filter: 'drop-shadow(0 0 6px var(--holo-cyan-glow))' }}>
+            <span style={{ display: 'inline-flex', color: 'var(--accent)' }}>
               {icon}
             </span>
           )}

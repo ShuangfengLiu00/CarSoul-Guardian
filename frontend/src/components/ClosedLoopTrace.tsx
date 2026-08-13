@@ -189,12 +189,12 @@ export default function ClosedLoopTrace({ loop, compact = false }: Props) {
                     display: "flex",
                     alignItems: "center",
                     gap: 4,
-                    background: "#fff",
+                    background: "rgba(168,85,247,0.12)",
                     padding: "3px 8px",
                     borderRadius: 6,
                     fontSize: 11,
-                    color: "#5b21b6",
-                    border: "1px solid #e9d5ff",
+                    color: "#c4b5fd",
+                    border: "1px solid rgba(168,85,247,0.4)",
                     cursor: "default",
                     maxWidth: 200,
                     overflow: "hidden",
@@ -224,9 +224,9 @@ export default function ClosedLoopTrace({ loop, compact = false }: Props) {
           style={{
             marginTop: 10,
             padding: "8px 12px",
-            background: judge.conflict_detected ? "#fffbeb" : "#f0fdf4",
+            background: judge.conflict_detected ? "rgba(255,184,0,0.12)" : "rgba(0,255,157,0.10)",
             borderRadius: 8,
-            border: `1px solid ${judge.conflict_detected ? "#fde68a" : "#bbf7d0"}`,
+            border: `1px solid ${judge.conflict_detected ? "rgba(255,184,0,0.4)" : "rgba(0,255,157,0.4)"}`,
           }}
         >
           <div
@@ -308,9 +308,9 @@ export default function ClosedLoopTrace({ loop, compact = false }: Props) {
           style={{
             marginTop: 10,
             padding: "8px 12px",
-            background: "#f8fafc",
+            background: "rgba(255,255,255,0.06)",
             borderRadius: 8,
-            border: "1px solid #e2e8f0",
+            border: "1px solid rgba(255,255,255,0.12)",
           }}
         >
           <div

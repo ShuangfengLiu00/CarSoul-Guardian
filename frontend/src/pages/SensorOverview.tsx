@@ -384,9 +384,9 @@ export default function SensorOverview() {
                   onRow={(r) => ({
                     style:
                       r.status === "crit"
-                        ? { background: "#fff1f0", borderLeft: "3px solid #cf1322" }
+                        ? { background: "rgba(255,56,96,0.12)", borderLeft: "3px solid #ff3860" }
                         : r.status === "warn"
-                          ? { background: "#fffbe6", borderLeft: "3px solid #faad14" }
+                          ? { background: "rgba(255,184,0,0.12)", borderLeft: "3px solid #ffb800" }
                           : undefined,
                   })}
                 />

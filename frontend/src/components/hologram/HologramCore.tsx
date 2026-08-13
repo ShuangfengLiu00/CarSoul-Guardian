@@ -1,5 +1,4 @@
 import { useId } from 'react';
-import { motion } from 'framer-motion';
 
 interface HologramCoreProps {
   size?: number;
@@ -9,20 +8,19 @@ interface HologramCoreProps {
 }
 
 /**
- * HologramCore - AI 核心可视化（脉动光球）
- * 多层同心圆呼吸动画 + 旋转虚线环 + 中心发光球体 + 向外扩散的数据粒子。
+ * HologramCore - 引擎状态可视化（CS-UI-DS 精密克制版）
+ * 静态同心环 + 中心实色圆点，无霓虹发光 / 无呼吸粒子 / 无旋转。
+ * 仅作"引擎在线"状态指示，不喧宾夺主。
  */
 export function HologramCore({
   size = 200,
-  color = 'var(--holo-purple)',
+  color = 'var(--accent)',
   label,
   active = true,
 }: HologramCoreProps) {
   const rawId = useId();
   const uid = rawId.replace(/[:]/g, '');
-  const glowId = `hc-glow-${uid}`;
   const center = size / 2;
-  const particles = Array.from({ length: 8 }, (_, i) => i);
 
   return (
     <div
@@ -40,18 +38,9 @@ export function HologramCore({
         height={size}
         viewBox={`0 0 ${size} ${size}`}
         style={{ position: 'absolute', inset: 0 }}
+        aria-hidden="true"
       >
-        <defs>
-          <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="b" />
-            <feMerge>
-              <feMergeNode in="b" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* 外层旋转虚线环 */}
+        {/* 外环（静态、低透明） */}
         <circle
           cx={center}
           cy={center}
@@ -59,11 +48,9 @@ export function HologramCore({
           fill="none"
           strokeWidth={1}
           strokeDasharray="6 10"
-          className="holo-anim-rotate"
-          filter={`url(#${glowId})`}
           style={{ stroke: color, strokeOpacity: 0.3, transformOrigin: 'center', transformBox: 'fill-box' }}
         />
-        {/* 内层快速旋转环 */}
+        {/* 内环（静态、更低透明） */}
         <circle
           cx={center}
           cy={center}
@@ -71,87 +58,43 @@ export function HologramCore({
           fill="none"
           strokeWidth={1}
           strokeDasharray="2 6"
-          className="holo-anim-rotate-fast"
-          filter={`url(#${glowId})`}
-          style={{ stroke: color, strokeOpacity: 0.2, transformOrigin: 'center', transformBox: 'fill-box' }}
+          style={{ stroke: color, strokeOpacity: 0.18, transformOrigin: 'center', transformBox: 'fill-box' }}
         />
       </svg>
 
-      {/* 呼吸同心圆 */}
+      {/* 静态同心环 */}
       <div
-        className="holo-anim-breathe"
         style={{
           position: 'absolute',
           width: size * 0.72,
           height: size * 0.72,
           borderRadius: '50%',
           border: `1px solid ${color}`,
-          opacity: 0.35,
+          opacity: 0.28,
         }}
       />
       <div
-        className="holo-anim-breathe"
         style={{
           position: 'absolute',
           width: size * 0.52,
           height: size * 0.52,
           borderRadius: '50%',
           border: `1px solid ${color}`,
-          opacity: 0.55,
-          animationDelay: '0.5s',
+          opacity: 0.45,
         }}
       />
 
-      {/* 中心发光球体 */}
+      {/* 中心实色圆点（无发光） */}
       <div
-        className={active ? 'holo-anim-breathe' : ''}
         style={{
-          width: size * 0.34,
-          height: size * 0.34,
+          width: size * 0.3,
+          height: size * 0.3,
           borderRadius: '50%',
-          background: `radial-gradient(circle at 35% 35%, ${color} 0%, ${color} 30%, transparent 70%)`,
-          boxShadow: `0 0 40px ${color}, 0 0 80px ${color}`,
+          background: color,
           position: 'relative',
           zIndex: 2,
         }}
       />
-
-      {/* 向外扩散的数据粒子 */}
-      {active &&
-        particles.map((i) => {
-          const angle = (i / particles.length) * Math.PI * 2;
-          const dist = size * 0.42;
-          return (
-            <motion.span
-              key={i}
-              style={{
-                position: 'absolute',
-                left: '50%',
-                top: '50%',
-                width: 4,
-                height: 4,
-                marginLeft: -2,
-                marginTop: -2,
-                borderRadius: '50%',
-                background: color,
-                boxShadow: `0 0 8px ${color}`,
-                zIndex: 3,
-              }}
-              animate={{
-                x: [0, Math.cos(angle) * dist, Math.cos(angle) * dist * 1.25],
-                y: [0, Math.sin(angle) * dist, Math.sin(angle) * dist * 1.25],
-                opacity: [0, 1, 0],
-                scale: [0.5, 1, 0.3],
-              }}
-              transition={{
-                duration: 2.5,
-                repeat: Infinity,
-                delay: i * 0.25,
-                ease: 'easeOut',
-              }}
-            />
-          );
-        })}
 
       {label && (
         <div
@@ -163,7 +106,7 @@ export function HologramCore({
             fontWeight: 600,
             letterSpacing: '0.05em',
             whiteSpace: 'nowrap',
-            textShadow: '0 0 10px var(--holo-purple-glow)',
+            color: 'var(--text-200)',
           }}
         >
           {label}

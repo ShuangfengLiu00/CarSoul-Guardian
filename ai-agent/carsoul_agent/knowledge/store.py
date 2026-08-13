@@ -45,6 +45,14 @@ class VectorStore(ABC):
     def clear(self) -> None:
         """Remove all chunks."""
 
+    @abstractmethod
+    def get_embedder_tag(self) -> str | None:
+        """Return the embedder id the stored vectors were built with, or None."""
+
+    @abstractmethod
+    def set_embedder_tag(self, tag: str) -> None:
+        """Record the embedder id used to build the stored vectors."""
+
     @property
     def ready(self) -> bool:
         """Whether the store is usable (has data loaded)."""
@@ -134,6 +142,23 @@ class ChromaVectorStore(VectorStore):
             return 0
         return self._collection.count()
 
+    def get_embedder_tag(self) -> str | None:
+        if not self._collection:
+            return None
+        meta = self._collection.metadata or {}
+        return meta.get("embedder_tag")
+
+    def set_embedder_tag(self, tag: str) -> None:
+        if not self._collection:
+            return
+        # Preserve the HNSW space setting; just stamp the embedder id.
+        meta = dict(self._collection.metadata or {})
+        meta["embedder_tag"] = tag
+        try:
+            self._collection.modify(metadata=meta)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to stamp embedder_tag on collection: %s", exc)
+
     def clear(self) -> None:
         if not self._client or not self._collection:
             return
@@ -164,6 +189,13 @@ class InMemoryVectorStore(VectorStore):
     def __init__(self) -> None:
         self._chunks: list[Chunk] = []
         self._vectors: list[list[float]] = []
+        self._embedder_tag: str | None = None
+
+    def get_embedder_tag(self) -> str | None:
+        return self._embedder_tag
+
+    def set_embedder_tag(self, tag: str) -> None:
+        self._embedder_tag = tag
 
     def upsert(self, chunks: list[Chunk]) -> None:
         existing = {c.chunk_id: i for i, c in enumerate(self._chunks)}

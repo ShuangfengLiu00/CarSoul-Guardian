@@ -58,11 +58,24 @@ class AgentLinkState(BaseModel):
 
 class HealthOverview(BaseModel):
     # None = 取不到真实车况。**不允许**用常量兜底（历史版本硬编码 92）。
+    # 收敛 P1：health_score 是「车辆健康分(VHS)」的保留字段。overview 是 carModel
+    # 世界模型作用域的端点，无法计算 Guardian VHS，故恒为 None；前端车辆健康分
+    # 应改取 /api/vehicle/{id}/health-score。这样「health_score」字段名在全站
+    # 始终只有 VHS 一个定义，杜绝与 carModel 世界模型 SOH 健康互相冒充。
     health_score: int | None = Field(
-        None, description="0-100 综合健康分。取不到真实车况时为 None。"
+        None, description="车辆综合健康分(VHS)。由 /api/vehicle/{id}/health-score 统一提供；"
+                          "overview 为世界模型作用域端点，不在此重复定义，恒为 None。"
+    )
+    # 收敛 P1：carModel 世界模型对该仿真车的 SOH 健康评估，是**另一套定义**，
+    # 绝不等同于车辆物理健康分。仅用于「世界模型引擎健康分」展示。
+    world_model_soh_health: float | None = Field(
+        None,
+        description="carModel 世界模型对该仿真车的 SOH 健康评估(0-100)。"
+        "口径 = clamp((SOH−0.60)/0.40, 0, 1)×100（carModel encoder/state_encoder.py:153）。"
+        "与 VHS 是不同定义，仅供『世界模型引擎健康分』展示，不可等同于车辆真实车况。",
     )
     health_score_basis: str | None = Field(
-        None, description="健康分的来源与口径，便于用户判断这个数字可不可信。"
+        None, description="world_model_soh_health 的来源与口径，便于用户判断这个数字可不可信。"
     )
     agent_status: str  # active | degraded | unknown
     agent_link: AgentLinkState | None = Field(

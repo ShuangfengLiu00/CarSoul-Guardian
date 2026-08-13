@@ -1,9 +1,12 @@
+export * from "./base";
 export * from "./ClosedLoopTrace";
 export { default as ClosedLoopTrace } from "./ClosedLoopTrace";
 export * from "./CriticalAlertOverlay";
 export { default as CriticalAlertOverlay } from "./CriticalAlertOverlay";
 export * from "./DemoBadge";
 export { default as DemoBadge } from "./DemoBadge";
+export * from "./EducationalEmptyState";
+export { default as EducationalEmptyState } from "./EducationalEmptyState";
 export * from "./hologram";
 export * from "./three";
 export * from "./TripReportCard";

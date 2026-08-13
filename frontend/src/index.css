@@ -1985,3 +1985,538 @@ svg {
 .ant-message-error .anticon {
   color: var(--holo-red);
 }
+
+/* ============================================================
+   全站暗色全息主题 reskin（2026-08-12 · 设计师新车机 HMI 设计系统落地）
+   机制：main.tsx 已切 darkAlgorithm + 全息 token；
+   以下把浅色 .cs-* 类集中翻成玻璃暗色，一处改写即覆盖全站页面。
+   ============================================================ */
+
+:root {
+  --cs-bg: #050816;
+  --cs-text: #e2e8f0;
+}
+
+body {
+  background: var(--holo-gradient-space, radial-gradient(ellipse at top, #0d1129 0%, #050816 100%));
+  color: var(--holo-text);
+}
+
+/* 通用卡片 → 玻璃 */
+.cs-card,
+.cs-stat-card {
+  background: var(--holo-glass);
+  border: 1px solid var(--holo-glass-border);
+  box-shadow: var(--holo-shadow-card);
+  color: var(--holo-text);
+}
+.cs-stat-card--alert {
+  background: linear-gradient(135deg, rgba(255, 56, 96, 0.10) 0%, var(--holo-glass) 60%);
+  border-color: rgba(255, 56, 96, 0.25);
+}
+.cs-stat-card--alert::before {
+  background: var(--holo-red);
+}
+
+/* 生命体征 / 记忆 / 预测 / 建议 等浅色块 → 暗玻璃 */
+.cs-life-vital,
+.cs-soul-vital,
+.cs-life-pred__item,
+.cs-soul-pred__item,
+.cs-soul-memory__item,
+.cs-life-suggest__item,
+.cs-soul-insights__item {
+  background: var(--holo-glass);
+  border: 1px solid var(--holo-glass-border);
+  color: var(--holo-text);
+}
+.cs-life-vital__label,
+.cs-soul-vital__label,
+.cs-life-vital__sub,
+.cs-soul-vital__sub,
+.cs-life-pred__reason,
+.cs-soul-pred__text,
+.cs-soul-memory__time {
+  color: var(--holo-text-dim);
+}
+.cs-life-vital__value,
+.cs-soul-vital__value,
+.cs-life-pred__comp,
+.cs-soul-pred__comp,
+.cs-soul-memory__content {
+  color: var(--holo-text-bright);
+}
+.cs-life-suggest__item,
+.cs-soul-insights__item {
+  border-bottom-color: var(--holo-glass-border);
+  color: var(--holo-text);
+}
+.cs-life-suggest__icon,
+.cs-soul-insights__icon {
+  color: var(--holo-amber);
+}
+.cs-life-pred__sugg,
+.cs-soul-pred__sugg {
+  color: var(--holo-cyan);
+}
+
+/* 守护闭环 */
+.cs-loop {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.06), rgba(0, 255, 157, 0.04));
+  border: 1px solid rgba(0, 240, 255, 0.18);
+}
+.cs-loop-badge {
+  background: rgba(0, 240, 255, 0.12);
+  color: var(--holo-cyan);
+}
+.cs-loop-label strong {
+  color: var(--holo-text-bright);
+}
+.cs-loop-agent {
+  color: var(--holo-text-dim);
+}
+.cs-loop-dtitle {
+  color: var(--holo-text-bright);
+}
+.cs-loop-dtext {
+  color: var(--holo-text-dim);
+}
+.cs-loop-reminder {
+  color: var(--holo-amber);
+}
+.cs-loop-foot {
+  border-top-color: rgba(0, 240, 255, 0.2);
+}
+.cs-loop-actions li {
+  color: var(--holo-text);
+}
+
+/* 平板 Tab Bar / Header → 暗玻璃 */
+.cs-tablet-tabbar {
+  background: rgba(5, 8, 22, 0.92);
+  border-top: 1px solid var(--holo-glass-border);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.4);
+}
+.cs-tablet-tabbar__item {
+  color: var(--holo-text-dim);
+}
+.cs-tablet-tabbar__item.is-active {
+  color: var(--holo-cyan);
+}
+.cs-tts-toggle {
+  background: rgba(0, 240, 255, 0.08);
+}
+
+/* 提示条 / 小字 */
+.cs-loop-detail,
+.cs-life-empty {
+  color: var(--holo-text-dim);
+}
+
+/* 已有暗色 hero 不重复处理（.cs-life-hero / .cs-soul-hero 已是暗渐变） */
+
+/* ============================================================
+   CarSoul 设计系统规范（CS-UI-DS v1.0）落地块 —— 覆盖全站
+   设计原则：精密克制的座舱感（Precision, not glow）
+   主强调：灵魂绿 #2dd4bf；禁用霓虹发光 / 紫蓝渐变等泛 AI 套路。
+   颜色 / 字体 / 间距 / 圆角 / 阴影 / 动效 全部以本规范 Token 驱动。
+   角色主题：html[data-role] 切换强调色，仅换色不换骨架（§七）。
+   ============================================================ */
+
+:root {
+  /* —— 背景层（由深到浅） —— */
+  --ink-950: #07090f;
+  --ink-900: #0b0f17;
+  --ink-850: #0f141f;
+  --ink-800: #141b29;
+  --ink-750: #1a2333;
+
+  /* —— 边框（发丝级） —— */
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.12);
+
+  /* —— 文本 —— */
+  --text-100: #eef2f8;
+  --text-200: #c3ccda;
+  --text-300: #8b97a8;
+  --text-400: #5f6b7e;
+
+  /* —— 灵魂绿（主强调 / 健康信号） —— */
+  --soul-300: #5eead4;
+  --soul-400: #2dd4bf;
+  --soul-500: #14b8a6;
+  --soul-600: #0d9488;
+  --soul-soft: rgba(45, 212, 191, 0.12);
+
+  /* —— 电光蓝（信息 / 链接 / OEM） —— */
+  --info-400: #60a5fa;
+  --info-500: #3b82f6;
+  --info-soft: rgba(96, 165, 250, 0.12);
+
+  /* —— 琥珀（审慎 / 保险 / 二手） —— */
+  --warn-400: #fbbf24;
+  --warn-500: #f59e0b;
+  --warn-soft: rgba(245, 158, 11, 0.12);
+
+  /* —— 危险红（高风险 / 拒答） —— */
+  --danger-400: #f87171;
+  --danger-500: #ef4444;
+  --danger-soft: rgba(239, 68, 68, 0.12);
+
+  /* —— 字体 —— */
+  --font-ui: "IBM Plex Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-display: "Space Grotesk", "IBM Plex Sans SC", sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+
+  /* —— 间距（4px 基准） —— */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px; --space-16: 64px; --space-20: 80px;
+
+  /* —— 圆角 / 阴影 / 动效 —— */
+  --r-sm: 6px;  --r-md: 10px; --r-lg: 16px; --r-xl: 22px; --r-full: 999px;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 8px 24px -8px rgba(0, 0, 0, 0.55);
+  --shadow-3: 0 16px 48px -12px rgba(0, 0, 0, 0.6);
+  --glow-soul: 0 0 0 1px rgba(45, 212, 191, 0.4), 0 0 24px -4px rgba(45, 212, 191, 0.35); /* 仅英雄 SOH 环 / 3D 孪生 */
+  --ease-out-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --dur-1: 120ms; --dur-2: 200ms; --dur-3: 320ms; --dur-4: 500ms;
+
+  /* 默认强调色 = 灵魂绿（C 端车主 / OEM） */
+  --accent: var(--soul-400);
+  --accent-soft: var(--soul-soft);
+
+  /* 将既有全息基础设施的青色指针重定向到灵魂绿，并熄灭发光 */
+  --holo-cyan: #2dd4bf;
+  --holo-cyan-dim: rgba(45, 212, 191, 0.5);
+  --holo-cyan-glow: rgba(45, 212, 191, 0);
+  --holo-shadow-glow: none;
+  --holo-green: #14b8a6;
+}
+
+/* —— 角色主题：仅换强调色，不换骨架（§七） —— */
+[data-role="owner"]   { --accent: var(--soul-400); --accent-soft: var(--soul-soft);  --holo-cyan: #2dd4bf; --holo-cyan-dim: rgba(45,212,191,.5);  --holo-cyan-glow: rgba(45,212,191,0); }
+[data-role="fleet"]   { --accent: var(--info-400); --accent-soft: var(--info-soft);  --holo-cyan: #60a5fa; --holo-cyan-dim: rgba(96,165,250,.5);  --holo-cyan-glow: rgba(96,165,250,0); }
+[data-role="insurer"] { --accent: var(--warn-400); --accent-soft: var(--warn-soft);  --holo-cyan: #fbbf24; --holo-cyan-dim: rgba(251,191,36,.5);  --holo-cyan-glow: rgba(251,191,36,0); }
+[data-role="dealer"]  { --accent: var(--warn-400); --accent-soft: var(--warn-soft);  --holo-cyan: #fbbf24; --holo-cyan-dim: rgba(251,191,36,.5);  --holo-cyan-glow: rgba(251,191,36,0); }
+[data-role="oem"]     { --accent: var(--soul-400); --accent-soft: var(--soul-soft);  --holo-cyan: #2dd4bf; --holo-cyan-dim: rgba(45,212,191,.5);  --holo-cyan-glow: rgba(45,212,191,0); }
+
+/* —— 页面底色 / 字体（克制，无发光叠层） —— */
+body {
+  background: var(--ink-900);
+  color: var(--text-100);
+  font-family: var(--font-ui);
+}
+.holo-page {
+  background: var(--ink-900);
+  color: var(--text-100);
+  font-family: var(--font-ui);
+}
+.holo-page::before { display: none; }
+
+/* 焦点环（WCAG AA，§五） */
+:focus-visible {
+  outline: 2px solid var(--soul-400);
+  outline-offset: 2px;
+}
+
+/* 渐变文本 → 灵魂绿实色（禁用紫蓝霓虹渐变） */
+.cs-gradient-text,
+.holo-gradient-text,
+.holo-gradient-text-purple {
+  background: none;
+  -webkit-text-fill-color: var(--soul-400);
+  color: var(--soul-400);
+}
+
+/* —— 通用卡片 / 状态徽章 / 英雄辉光（§6.2 / §6.3 / §4.5） —— */
+.card {
+  background: var(--ink-850);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--space-6);
+  transition: border-color var(--dur-2), transform var(--dur-2);
+}
+.card:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+}
+.badge-low  { background: var(--soul-soft);   color: var(--soul-300); }
+.badge-med  { background: var(--warn-soft);   color: var(--warn-400); }
+.badge-high { background: var(--danger-soft); color: var(--danger-400); }
+.glow-soul  { box-shadow: var(--glow-soul); }   /* 仅 SOH 英雄环 / 3D 孪生高光 */
+
+/* —— 把既有 .cs-* 浅色类重映射到 CS-UI-DS Token（玻璃暗色，无发光） —— */
+.cs-card,
+.cs-stat-card {
+  background: var(--ink-850);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-2);
+  color: var(--text-100);
+}
+.cs-stat-card--alert {
+  background: linear-gradient(135deg, var(--danger-soft) 0%, var(--ink-850) 60%);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+.cs-stat-card--alert::before { background: var(--danger-500); }
+
+.cs-life-vital,
+.cs-soul-vital,
+.cs-life-pred__item,
+.cs-soul-pred__item,
+.cs-soul-memory__item,
+.cs-life-suggest__item,
+.cs-soul-insights__item {
+  background: var(--ink-850);
+  border: 1px solid var(--line);
+  color: var(--text-100);
+}
+.cs-life-vital__label,
+.cs-soul-vital__label,
+.cs-life-vital__sub,
+.cs-soul-vital__sub,
+.cs-life-pred__reason,
+.cs-soul-pred__text,
+.cs-soul-memory__time { color: var(--text-300); }
+.cs-life-vital__value,
+.cs-soul-vital__value,
+.cs-life-pred__comp,
+.cs-soul-pred__comp,
+.cs-soul-memory__content { color: var(--text-100); }
+.cs-life-suggest__item,
+.cs-soul-insights__item {
+  border-bottom-color: var(--line);
+  color: var(--text-100);
+}
+.cs-life-suggest__icon,
+.cs-soul-insights__icon { color: var(--warn-400); }
+.cs-life-pred__sugg,
+.cs-soul-pred__sugg { color: var(--soul-400); }
+
+/* 守护闭环 → 灵魂绿玻璃（覆盖旧青色渐变） */
+.cs-loop {
+  background: linear-gradient(135deg, var(--soul-soft), rgba(45, 212, 191, 0.03));
+  border: 1px solid rgba(45, 212, 191, 0.18);
+}
+.cs-loop-badge { background: var(--soul-soft); color: var(--soul-300); }
+.cs-loop-label strong,
+.cs-loop-dtitle { color: var(--text-100); }
+.cs-loop-agent,
+.cs-loop-dtext { color: var(--text-300); }
+.cs-loop-reminder { color: var(--warn-400); }
+.cs-loop-foot { border-top-color: rgba(45, 212, 191, 0.2); }
+.cs-loop-actions li { color: var(--text-100); }
+
+/* 平板 Tab Bar / Header */
+.cs-tablet-tabbar {
+  background: rgba(7, 9, 15, 0.92);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.4);
+}
+.cs-tablet-tabbar__item { color: var(--text-300); }
+.cs-tablet-tabbar__item.is-active { color: var(--soul-400); }
+.cs-tts-toggle { background: var(--soul-soft); }
+
+.cs-loop-detail,
+.cs-life-empty { color: var(--text-300); }
+
+/* —— Antd 暗色组件收口（表头 / 滚动条 / 分页） —— */
+.holo-page .ant-table-thead > tr > th {
+  background: rgba(45, 212, 191, 0.06);
+  color: var(--text-100);
+  border-bottom-color: rgba(45, 212, 191, 0.15);
+  font-size: 13px;
+}
+.holo-page ::-webkit-scrollbar-thumb { background: rgba(45, 212, 191, 0.2); }
+.holo-page ::-webkit-scrollbar-thumb:hover { background: rgba(45, 212, 191, 0.4); }
+
+/* —— 空状态（§6.6 教育意义，禁用假数据填充） —— */
+.cs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+  color: var(--text-300);
+}
+.cs-empty__icon { font-size: 40px; color: var(--accent); opacity: 0.85; }
+.cs-empty__title { font-size: 16px; font-weight: 600; color: var(--text-100); }
+
+/* —— 进化引擎经验模式卡片（修复 holo-glass + 错位动画导致裁切成细条） —— */
+.cs-pattern-card {
+  background: var(--ink-850);
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color var(--dur-2), transform var(--dur-2);
+}
+.cs-pattern-card:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
+/* —— 全息玻璃卡片收口（保留视觉，但禁用溢出裁切和错位动画） —— */
+.holo-glass {
+  overflow: visible;            /* 修复 .holo-glass + .holo-anim-fade-in 组合把内容裁成细条 */
+}
+.holo-anim-fade-in,
+.holo-anim-fade-scale,
+.holo-anim-slide-left,
+.holo-anim-slide-right {
+  animation-fill-mode: both;    /* 替换 backwards：动画结束后保留终态，避免停留在初始位移/透明度 */
+}
+@media (prefers-reduced-motion: reduce) {
+  .holo-anim-fade-in,
+  .holo-anim-fade-scale,
+  .holo-anim-slide-left,
+  .holo-anim-slide-right { animation: none !important; }
+}
+.cs-empty__desc { font-size: 14px; line-height: 1.6; max-width: 440px; }
+
+/* ============================================================
+   全息视觉类 → CS-UI-DS 精密克制重映射（全局 Flat 落地）
+   把既有 .holo-* 的玻璃拟态 / 霓虹发光 / 扫描线 / 紫蓝渐变
+   全部改为 Token 驱动的实色卡片、发丝边框、无发光。
+   角色主题统一引用 --accent（由 html[data-role] 切换，§七）。
+   ============================================================ */
+
+/* 玻璃卡片 → 实色发丝边框卡（§6.2） */
+.holo-glass {
+  background: var(--ink-850);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  position: relative;
+  overflow: visible;
+}
+.holo-glass::before { display: none; }
+.holo-glass-hover { transition: border-color var(--dur-2), transform var(--dur-2); }
+.holo-glass-hover:hover {
+  background: var(--ink-800);
+  border-color: var(--line-strong);
+  box-shadow: none;
+  transform: translateY(-2px);
+}
+
+/* 扫描线 / 角标发光 / 告警波 → 全部关闭（§一 禁用霓虹套路） */
+.holo-scanline { display: none; }
+.holo-corners::before, .holo-corners::after { box-shadow: none; }
+.holo-alert-wave { display: none; }
+
+/* 文本 → 去发光（§4.3） */
+.holo-text { color: var(--text-200); }
+.holo-text-dim { color: var(--text-300); }
+.holo-text-bright { color: var(--text-100); }
+.holo-text-cyan { color: var(--soul-400); text-shadow: none; }
+.holo-text-purple { color: var(--warn-400); text-shadow: none; }
+.holo-text-amber { color: var(--warn-400); text-shadow: none; }
+.holo-text-red { color: var(--danger-400); text-shadow: none; }
+.holo-text-green { color: var(--soul-400); text-shadow: none; }
+
+/* 区块标题 → 去发光竖条（§6 标题 H1 24px） */
+.holo-section-title {
+  color: var(--text-100);
+  font-size: 22px;
+  font-weight: 700;
+}
+.holo-section-title::before {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+/* 芯片 → 实色软底（中性 chip 用 ink-800；语义色按 §4.2 风险映射） */
+.holo-chip {
+  background: var(--ink-800);
+  border: 1px solid var(--line);
+  color: var(--text-200);
+  text-shadow: none;
+}
+.holo-chip-amber { background: var(--warn-soft); color: var(--warn-400); border-color: transparent; }
+.holo-chip-red { background: var(--danger-soft); color: var(--danger-400); border-color: transparent; }
+.holo-chip-green { background: var(--soul-soft); color: var(--soul-300); border-color: transparent; }
+.holo-chip-purple { background: var(--info-soft); color: var(--info-400); border-color: transparent; }
+
+/* 按钮 → 实色 §6.1（同一屏主按钮 ≤1） */
+.holo-btn {
+  background: var(--soul-500);
+  border: 1px solid transparent;
+  color: #04201c;
+  text-shadow: none;
+  box-shadow: none;
+}
+.holo-btn::before { display: none; }
+.holo-btn:hover {
+  background: var(--soul-400);
+  border-color: transparent;
+  box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
+}
+.holo-btn-purple {
+  background: var(--warn-500);
+  border-color: transparent;
+  color: #2a1c00;
+  text-shadow: none;
+}
+.holo-btn-purple:hover { background: var(--warn-400); box-shadow: var(--shadow-2); }
+.holo-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--text-100);
+}
+.holo-btn-ghost:hover { background: var(--ink-800); border-color: var(--line-strong); box-shadow: none; }
+
+/* 渐变文本 → 实色（§4.5 禁霓虹渐变） */
+.holo-gradient-text,
+.holo-gradient-text-purple { background: none; -webkit-text-fill-color: var(--accent); color: var(--accent); }
+
+/* 能量条 / 分隔线 → 实色发丝（去 fade-to-transparent 渐变） */
+.holo-energy-bar { background: rgba(255, 255, 255, 0.06); }
+.holo-energy-bar__fill { background: var(--accent); }
+.holo-divider { background: linear-gradient(90deg, transparent, var(--line), transparent); }
+
+/* 进入动效收口：上移 8px（§十 禁回弹/弹性） */
+@keyframes holoFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== CockpitView：3D 数字孪生驾驶舱内嵌页 ===== */
+.cockpit-embed {
+  margin: -24px; /* 抵消 .cs-content-wrap 的 padding，撑满可视区 */
+  height: calc(100vh - 64px); /* 减去桌面 Header 高度 */
+  display: flex;
+  flex-direction: column;
+  background: #0b1220;
+  border-radius: 0 0 14px 14px;
+  overflow: hidden;
+}
+.cockpit-embed__frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #0b1220;
+}
+.cockpit-embed__loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0b1220;
+}
+.cockpit-embed__error {
+  padding: 24px;
+}
+@media (pointer: coarse), (max-width: 1024px) {
+  /* 平板/手机：恢复内边距，避免贴边；高度给底部 Tab Bar 让位 */
+  .cockpit-embed {
+    margin: -16px;
+    height: calc(100vh - 64px - 72px);
+  }
+}

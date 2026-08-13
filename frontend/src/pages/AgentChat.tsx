@@ -25,7 +25,7 @@ import {
   HeartOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
-import { useAgent, useSpeech } from "@/hooks";
+import { useAgent, useSpeech, useCurrentVehicle } from "@/hooks";
 import { useAgentStore } from "@/stores";
 import { ClosedLoopTrace, TripReportCard } from "@/components";
 
@@ -35,6 +35,8 @@ const { TextArea } = Input;
 export default function AgentChat() {
   const { messages, status, linkFacts, send, reset } = useAgent();
   const sessionId = useAgentStore((s) => s.sessionId);
+  // 本车数据源：自动锁定车辆列表第一辆为「本车」，聊天时透传其 id 给后端做车辆关联
+  const { vehicle } = useCurrentVehicle();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const fromVoiceRef = useRef(false);
@@ -81,7 +83,7 @@ export default function AgentChat() {
   const doSend = (text: string) => {
     const t = text.trim();
     if (!t || status === "thinking") return;
-    send(t, (answer) => speak(answer));
+    send(t, (answer) => speak(answer), vehicle?.id);
     setInput("");
   };
 
@@ -188,7 +190,7 @@ export default function AgentChat() {
           {messages.length === 0 ? (
             <div style={{ padding: "40px 0", textAlign: "center" }}>
               <Empty
-                image={<RobotOutlined style={{ fontSize: 48, color: "#3b82f6" }} />}
+                image={<RobotOutlined style={{ fontSize: 48, color: "var(--soul-400)" }} />}
                 description={
                   <span>
                     我是 CarSoul Guardian 守护引擎。
@@ -214,7 +216,7 @@ export default function AgentChat() {
                     borderRadius: 10,
                     height: 44,
                     paddingInline: 20,
-                    background: "linear-gradient(135deg, #3b82f6, #6366f1)",
+                    background: "var(--soul-500)",
                     border: "none",
                   }}
                 >
@@ -263,7 +265,7 @@ export default function AgentChat() {
                   size={44}
                   style={{
                     background:
-                      m.role === "user" ? "#6366f1" : "linear-gradient(135deg,#3b82f6,#10b981)",
+                      m.role === "user" ? "var(--info-500)" : "var(--soul-500)",
                     flexShrink: 0,
                   }}
                   icon={m.role === "user" ? <UserOutlined /> : <RobotOutlined />}
@@ -326,17 +328,17 @@ export default function AgentChat() {
                       // 合规拒答/反问是正常回答，不该被涂成降级的黄底。
                       background:
                         m.role === "user"
-                          ? "#eef2ff"
+                          ? "rgba(59,130,246,0.14)"
                           : refused
-                            ? "#fff1f0"
+                            ? "rgba(255,56,96,0.12)"
                             : turnDegraded
-                              ? "#fffbe6"
-                              : "#fff",
+                              ? "rgba(255,184,0,0.12)"
+                              : "rgba(255,255,255,0.06)",
                       border: refused
                         ? "1px solid #ffa39e"
                         : m.role === "assistant" && turnDegraded
                           ? "1px dashed #f0c36d"
-                          : "1px solid #eef0f4",
+                          : "1px solid rgba(255,255,255,0.12)",
                       borderRadius: 14,
                       padding: "12px 16px",
                       fontSize: 16,
@@ -373,7 +375,7 @@ export default function AgentChat() {
             <div style={{ display: "flex", gap: 12, marginBottom: 18 }}>
               <Avatar
                 size={44}
-                style={{ background: "linear-gradient(135deg,#3b82f6,#10b981)" }}
+                style={{ background: "var(--soul-500)" }}
                 icon={<RobotOutlined />}
               />
               <Spin size="small" style={{ marginTop: 14 }} />

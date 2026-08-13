@@ -441,7 +441,19 @@ def _create_predictions(
     component_wear: dict[str, float],
     mileage: int,
 ) -> int:
-    """Create AI predictions based on current component health."""
+    """Create AI predictions based on current component health.
+
+    Idempotent: deletes existing predictions for this vehicle before
+    writing fresh ones, so repeated lifecycle generation never produces
+    duplicates.  See <https://github.com/.../issues/dup-predictions>.
+    """
+    # ---- 幂等去重：先清空该车辆旧预测，再写入最新 ----
+    db.execute(
+        __import__("sqlalchemy", fromlist=["delete"]).delete(VehiclePrediction)
+        .where(VehiclePrediction.vehicle_id == vehicle_id)
+    )
+    db.flush()
+
     predictions = []
 
     # Battery prediction

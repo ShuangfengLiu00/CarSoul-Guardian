@@ -33,6 +33,7 @@ from app.core.security import decode_access_token
 PUBLIC_PATHS: frozenset[str] = frozenset(
     {
         "/health",
+        "/api/health",
         "/docs",
         "/openapi.json",
         "/redoc",
@@ -42,7 +43,21 @@ PUBLIC_PATHS: frozenset[str] = frozenset(
 )
 
 # Prefixes for resources that are never authenticated (served by nginx in prod).
-PUBLIC_PREFIXES: tuple[str, ...] = ("/static", "/assets")
+# `/api/carsoul` 与 `/api/health` 是只读车况展示接口（Guardian 转发 carModel
+# 世界模型），作为公开产品主页的展示数据源对外暴露，不要求先登录。
+# `/api/agent` 是产品主页的 AI 对话入口，转发到 carModel /agent/chat，由引擎侧
+# 的 5 类合规闸门 + 身份先于地理纪律兜底，故作为公开交互端点暴露（与
+# `/api/carsoul`、`/api/health` 的公开化口径一致）。
+PUBLIC_PREFIXES: tuple[str, ...] = (
+    "/static",
+    "/assets",
+    "/api/carsoul",
+    "/api/health",
+    "/api/agent",
+    # T-BOX 遥测为车况中心只读展示数据源（与 /api/carsoul 同口径），仿真数据
+    # 经 data_source/confidence/quality_flags 透传标记，SPEC §12.2 冒烟测试免鉴权。
+    "/api/v1/tbox",
+)
 
 _AUTH_SCHEME = "bearer"
 

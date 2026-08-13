@@ -15,8 +15,8 @@ interface LevelConfig {
   chipClass: string;
   label: string;
   color: string;
-  glow: string;
   border: string;
+  bg: string;
   icon: string;
 }
 
@@ -24,81 +24,68 @@ const LEVEL_CONFIG: Record<AlertLevel, LevelConfig> = {
   info: {
     chipClass: 'holo-chip',
     label: '信息',
-    color: 'var(--holo-cyan)',
-    glow: 'rgba(0, 240, 255, 0.25)',
-    border: 'rgba(0, 240, 255, 0.4)',
+    color: 'var(--info-400)',
+    border: 'var(--info-400)',
+    bg: 'var(--info-soft)',
     icon: 'i',
   },
   warning: {
     chipClass: 'holo-chip-amber',
     label: '警告',
-    color: 'var(--holo-amber)',
-    glow: 'rgba(255, 184, 0, 0.25)',
-    border: 'rgba(255, 184, 0, 0.4)',
+    color: 'var(--warn-400)',
+    border: 'var(--warn-400)',
+    bg: 'var(--warn-soft)',
     icon: '!',
   },
   critical: {
     chipClass: 'holo-chip-red',
     label: '紧急',
-    color: 'var(--holo-red)',
-    glow: 'rgba(255, 56, 96, 0.35)',
-    border: 'rgba(255, 56, 96, 0.55)',
+    color: 'var(--danger-400)',
+    border: 'var(--danger-400)',
+    bg: 'var(--danger-soft)',
     icon: '!',
   },
 };
 
 /**
- * CosmicAlert - 太空主题告警横幅
- * critical: 红色脉动边框 + 告警波 + 扫描线
- * warning: 琥珀色辉光
- * info: 青色辉光
+ * CosmicAlert - 精密克制告警横幅（CS-UI-DS §6.3 / §6.4）
+ * 实色软底 + 左侧角色色边框，无脉冲 / 无扫描线 / 无霓虹发光。
  */
 export function CosmicAlert({ level, title, detail, source, time, onClose }: CosmicAlertProps) {
   const cfg = LEVEL_CONFIG[level];
-  const isCritical = level === 'critical';
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -12 }}
+      initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: 'easeOut' }}
-      className={`holo-glass ${isCritical ? 'holo-anim-pulse-red' : ''}`}
+      transition={{ duration: 0.32, ease: 'easeOut' }}
+      className="holo-glass"
       style={{
         position: 'relative',
         padding: '16px 20px',
-        border: `1px solid ${cfg.border}`,
-        boxShadow: isCritical ? `0 0 30px ${cfg.glow}` : `0 0 15px ${cfg.glow}`,
-        borderRadius: 12,
-        overflow: 'hidden',
+        borderLeft: `3px solid ${cfg.border}`,
+        borderRadius: 'var(--r-md)',
       }}
     >
-      {isCritical && <div className="holo-scanline" />}
-
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, position: 'relative', zIndex: 2 }}>
-        {/* 图标 + 告警波 */}
-        <div style={{ position: 'relative', width: 38, height: 38, flexShrink: 0 }}>
-          {isCritical && <span className="holo-alert-wave" style={{ position: 'absolute', inset: 0 }} />}
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 2,
-              width: '100%',
-              height: '100%',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${cfg.color}`,
-              color: cfg.color,
-              fontWeight: 800,
-              fontSize: 16,
-              textTransform: 'uppercase',
-              textShadow: `0 0 8px ${cfg.color}`,
-            }}
-          >
-            {cfg.icon}
-          </div>
+        {/* 图标（实色圆，无发光） */}
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            flexShrink: 0,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: cfg.bg,
+            border: `1px solid ${cfg.border}`,
+            color: cfg.color,
+            fontWeight: 800,
+            fontSize: 16,
+          }}
+        >
+          {cfg.icon}
         </div>
 
         {/* 内容 */}

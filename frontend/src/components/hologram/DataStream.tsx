@@ -1,5 +1,3 @@
-import { useId } from 'react';
-
 interface DataStreamProps {
   direction?: 'horizontal' | 'vertical';
   color?: string;
@@ -11,20 +9,17 @@ interface DataStreamProps {
 }
 
 /**
- * DataStream - 动态数据流可视化
- * 多条平行 SVG 线段以不同速度流动，节点处发光闪烁。
+ * DataStream - 静态发丝分隔线（CS-UI-DS 精密克制版）
+ * 原"动态霓虹数据流"违反 §一（Precision, not glow）。改为一条克制、无动画、
+ * 尊重 prefers-reduced-motion 的虚线分隔，仅作区块呼吸留白。
  */
 export function DataStream({
   direction = 'horizontal',
-  color = 'var(--holo-cyan)',
-  height = 60,
+  color = 'var(--line-strong)',
+  height = 36,
   segments,
   lines,
 }: DataStreamProps) {
-  const rawId = useId();
-  const uid = rawId.replace(/[:]/g, '');
-  const glowId = `ds-glow-${uid}`;
-
   const isHorizontal = direction === 'horizontal';
   const segCount = segments ?? lines ?? 5;
   const lineCount = 3;
@@ -33,24 +28,15 @@ export function DataStream({
   const VB_H = height;
 
   return (
-    <div style={{ width: '100%', height, position: 'relative', overflow: 'hidden' }}>
+    <div style={{ width: '100%', height, position: 'relative', overflow: 'hidden', opacity: 0.6 }}>
       <svg
         width="100%"
         height={height}
         viewBox={`0 0 ${VB_W} ${VB_H}`}
         preserveAspectRatio="none"
         style={{ display: 'block' }}
+        aria-hidden="true"
       >
-        <defs>
-          <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2" result="b" />
-            <feMerge>
-              <feMergeNode in="b" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
         {Array.from({ length: lineCount }, (_, i) => {
           const pos = (VB_H / (lineCount + 1)) * (i + 1);
           return (
@@ -60,15 +46,9 @@ export function DataStream({
               y1={isHorizontal ? pos : 0}
               x2={isHorizontal ? VB_W : pos}
               y2={isHorizontal ? pos : VB_H}
-              strokeWidth={1.5}
-              strokeDasharray="12 8"
-              filter={`url(#${glowId})`}
-              style={{
-                stroke: color,
-                strokeOpacity: 0.5 - i * 0.1,
-                animation: `holoRingDash ${10 + i * 4}s linear infinite`,
-                animationDirection: i % 2 ? 'reverse' : 'normal',
-              }}
+              strokeWidth={1}
+              strokeDasharray="2 10"
+              style={{ stroke: color, strokeOpacity: 0.5 - i * 0.12 }}
             />
           );
         })}
@@ -78,31 +58,11 @@ export function DataStream({
           if (isHorizontal) {
             const x = t * VB_W;
             const y = VB_H / 2;
-            return (
-              <circle key={n} cx={x} cy={y} r={2.5} filter={`url(#${glowId})`} style={{ fill: color }}>
-                <animate
-                  attributeName="opacity"
-                  values="0.2;1;0.2"
-                  dur="2s"
-                  begin={`${n * 0.3}s`}
-                  repeatCount="indefinite"
-                />
-              </circle>
-            );
+            return <circle key={n} cx={x} cy={y} r={1.5} style={{ fill: color, fillOpacity: 0.5 }} />;
           }
           const y = t * VB_H;
           const x = VB_W / 2;
-          return (
-            <circle key={n} cx={x} cy={y} r={2.5} filter={`url(#${glowId})`} style={{ fill: color }}>
-              <animate
-                attributeName="opacity"
-                values="0.2;1;0.2"
-                dur="2s"
-                begin={`${n * 0.3}s`}
-                repeatCount="indefinite"
-              />
-            </circle>
-          );
+          return <circle key={n} cx={x} cy={y} r={1.5} style={{ fill: color, fillOpacity: 0.5 }} />;
         })}
       </svg>
     </div>

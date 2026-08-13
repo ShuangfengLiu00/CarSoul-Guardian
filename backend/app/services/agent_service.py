@@ -186,17 +186,25 @@ async def chat(
     message: str,
     session_id: str | None = None,
     *,
-    role: str = "owner",
-    vehicle_id: str | None = None,
+    role: str = "oem",
+    vehicle_id: str | int | None = None,
 ) -> dict[str, Any]:
     """Answer a user message, preferring the real LLM link over local rules.
 
+    ``vehicle_id`` 此时已是 carModel 的 CSxxx 字符串——由 ``api/agent/router.py``
+    经品牌精确映射（``vehicle_mapping.resolve_carsoul_id``）解析后传入，本函数
+    对 carModel 命名空间无感知，只负责透传。仅作防御性兜底：若仍有整数透传进来，
+    按 ``f"CS{id:03d}"`` 偏移锚定，避免把 int 直接当 CSxxx 传入 carModel。
+
     Returns a dict matching AgentChatResponse.
     """
+    cs_vehicle_id = vehicle_id
+    if isinstance(cs_vehicle_id, int):
+        cs_vehicle_id = f"CS{cs_vehicle_id:03d}"
     # ---- 第一优先：carModel /agent/chat（唯一真实大模型链路）----
     try:
         cm = await carsoul_world.agent_chat(
-            query=message, role=role, vehicle_id=vehicle_id, session_id=session_id
+            query=message, role=role, vehicle_id=cs_vehicle_id, session_id=session_id
         )
         if isinstance(cm, dict) and "error" not in cm:
             return _record_link_state(_from_carmodel(cm, session_id))

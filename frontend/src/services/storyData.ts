@@ -5,6 +5,23 @@
  * 5-minute demo is always reliable on stage.
  */
 
+import { createElement, type ReactNode } from "react";
+import {
+  CalendarOutlined,
+  CarOutlined,
+  CheckCircleOutlined,
+  DashboardOutlined,
+  ExperimentOutlined,
+  FileTextOutlined,
+  MobileOutlined,
+  PoweroffOutlined,
+  RiseOutlined,
+  RobotOutlined,
+  SyncOutlined,
+  ThunderboltOutlined,
+  ToolOutlined,
+} from "@ant-design/icons";
+
 // ---- Act timeline (ms) ----
 export const ACT_DURATIONS = [50_000, 50_000, 70_000, 60_000, 80_000] as const;
 export const ACT_COUNT = 5;
@@ -108,7 +125,7 @@ export interface ExpertOpinion {
   key: string;
   name: string;
   specialty: string;
-  icon: string;
+  icon: ReactNode;
   severity: "info" | "warn" | "danger";
   finding: string;
   crossCheck: string;
@@ -120,7 +137,7 @@ export const EXPERT_PANEL: ExpertOpinion[] = [
     key: "powertrain",
     name: "动力系统专家",
     specialty: "电池·电机·电控",
-    icon: "🔋",
+    icon: createElement(PoweroffOutlined),
     severity: "danger",
     finding: "电池温度 25 分钟内攀升 11℃，升温速率为历史均值的 3.2 倍，符合热失控早期征兆特征。",
     crossCheck: "→ 请求电气专家验证温度传感器读数可靠性",
@@ -130,7 +147,7 @@ export const EXPERT_PANEL: ExpertOpinion[] = [
     key: "electrical",
     name: "电气系统专家",
     specialty: "传感器·线束·BMS",
-    icon: "⚡",
+    icon: createElement(ThunderboltOutlined),
     severity: "warn",
     finding: "交叉验证 3 路温度传感器读数一致，排除传感器误报。冷却效率从 91% 降至 67%，确认冷却响应不足。",
     crossCheck: "→ 确认动力专家数据可信，冷却异常属实",
@@ -140,7 +157,7 @@ export const EXPERT_PANEL: ExpertOpinion[] = [
     key: "chassis",
     name: "底盘系统专家",
     specialty: "悬挂·制动·转向",
-    icon: "🛞",
+    icon: createElement(DashboardOutlined),
     severity: "info",
     finding: "未发现底盘系统相关异常，制动/转向/悬挂数据均在正常区间。",
     crossCheck: "→ 排除底盘因素，缩小诊断范围",
@@ -150,7 +167,7 @@ export const EXPERT_PANEL: ExpertOpinion[] = [
     key: "driving",
     name: "驾驶行为专家",
     specialty: "驾驶风格·工况",
-    icon: "🚗",
+    icon: createElement(CarOutlined),
     severity: "info",
     finding: "近期驾驶风格平稳，无激烈驾驶记录。车辆处于静止停放状态，非人为因素导致温升。",
     crossCheck: "→ 排除驾驶行为因素",
@@ -160,7 +177,7 @@ export const EXPERT_PANEL: ExpertOpinion[] = [
     key: "maintenance",
     name: "保养规划专家",
     specialty: "维保·里程·寿命",
-    icon: "📅",
+    icon: createElement(CalendarOutlined),
     severity: "warn",
     finding: "里程 18,523 km 接近保养节点，上次冷却系统检查距今 8 个月，建议合并冷却检测。",
     crossCheck: "→ 补充维保历史，支持冷却系统老化假设",
@@ -231,7 +248,7 @@ export interface PushNotification {
 export const PUSH_NOTIFICATION: PushNotification = {
   appName: "CarSoul Guardian",
   time: "00:12",
-  title: "⚠️ 车辆电池温度异常升高趋势",
+  title: "车辆电池温度异常升高趋势",
   body: "您的车辆检测到动力电池温度异常升高趋势，目前未发生故障，但建议尽快检查车辆状态。",
   riskLevel: "中高风险",
   currentTemp: "43℃（持续上升中）",
@@ -243,7 +260,7 @@ export interface ClosureItem {
   key: string;
   title: string;
   description: string;
-  icon: string;
+  icon: ReactNode;
   status: string;
 }
 
@@ -253,7 +270,7 @@ export const CLOSURE_ITEMS: ClosureItem[] = [
     title: "车辆健康报告",
     description:
       "包含异常原因、风险等级、建议措施、历史对比，自动归档至车辆生命周期档案。",
-    icon: "📄",
+    icon: createElement(FileTextOutlined),
     status: "已生成 · 已归档",
   },
   {
@@ -261,7 +278,7 @@ export const CLOSURE_ITEMS: ClosureItem[] = [
     title: "通知车主",
     description:
       "推送已送达，车主次日早晨打开 App 即可查看完整报告与建议。",
-    icon: "📱",
+    icon: createElement(MobileOutlined),
     status: "已送达 · 已读",
   },
   {
@@ -269,7 +286,7 @@ export const CLOSURE_ITEMS: ClosureItem[] = [
     title: "连接服务中心",
     description:
       "模拟工单已生成，服务中心收到冷却系统检测建议，可提前备件。",
-    icon: "🔧",
+    icon: createElement(ToolOutlined),
     status: "工单已创建",
   },
 ];
@@ -282,7 +299,7 @@ export interface GrowthItem {
   key: string;
   title: string;
   description: string;
-  icon: string;
+  icon: ReactNode;
   delta: string;
 }
 
@@ -291,28 +308,28 @@ export const DIGITAL_LIFE_GROWTH: GrowthItem[] = [
     key: "lifecycle",
     title: "生命周期事件归档",
     description: "本次热风险守护全过程写入车辆生命周期档案，成为可追溯的成长记忆。",
-    icon: "🧬",
+    icon: createElement(ExperimentOutlined),
     delta: "累计事件 +1",
   },
   {
     key: "model",
     title: "风险预测模型更新",
     description: "AI 从本次冷却效率衰减模式中学习，热风险前置识别基线已校准。",
-    icon: "📈",
+    icon: createElement(RiseOutlined),
     delta: "识别精度提升",
   },
   {
     key: "behavior",
     title: "驾驶行为画像刷新",
     description: "结合近期驾驶风格与工况数据，个性化健康基线同步更新。",
-    icon: "🧠",
+    icon: createElement(RobotOutlined),
     delta: "画像基线 +1",
   },
   {
     key: "twin",
     title: "数字孪生进化",
     description: "数字孪生体与实体车辆状态同步，冷却系统健康权重重新平衡。",
-    icon: "🔄",
+    icon: createElement(SyncOutlined),
     delta: "孪生同步",
   },
 ];
@@ -329,7 +346,7 @@ export interface AdaptationStep {
   step: string;
   title: string;
   content: string;
-  icon: string;
+  icon: ReactNode;
   color: string;
 }
 
@@ -348,7 +365,7 @@ export const AGENT_ADAPTATION: {
       title: "维修反馈回流",
       content:
         "服务中心检测完毕：冷却液位偏低导致散热效率下降，非电池热失控。实际风险等级低于 Agent 预测。",
-      icon: "🔧",
+      icon: createElement(ToolOutlined),
       color: "#F77F00",
     },
     {
@@ -357,7 +374,7 @@ export const AGENT_ADAPTATION: {
       title: "Agent 重新学习",
       content:
         "Agent 对比预测结果与实际维修结论，识别偏差来源：未将冷却液位纳入热风险评估维度。",
-      icon: "🧠",
+      icon: createElement(RobotOutlined),
       color: "#00A8E8",
     },
     {
@@ -366,7 +383,7 @@ export const AGENT_ADAPTATION: {
       title: "风险模型更新",
       content:
         "热风险预测模型新增「冷却液位」辅助判断维度，冷却效率衰减权重从 0.3 调整至 0.2。",
-      icon: "📈",
+      icon: createElement(RiseOutlined),
       color: "#2A9D8F",
     },
     {
@@ -375,7 +392,7 @@ export const AGENT_ADAPTATION: {
       title: "下次更准",
       content:
         "阈值已校准。类似工况下 Agent 将先检查冷却液位再判断热风险，预测精度提升 23%。",
-      icon: "✅",
+      icon: createElement(CheckCircleOutlined),
       color: "#2A9D8F",
     },
   ],

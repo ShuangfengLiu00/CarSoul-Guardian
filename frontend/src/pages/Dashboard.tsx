@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Card,
   Col,
   Row,
@@ -46,8 +47,8 @@ import {
   AreaChart,
 } from "recharts";
 import { healthService, vehicleService } from "@/services";
-import { useCurrentVehicle } from "@/hooks";
-import type { HealthOverview, VehicleArchive, Alert } from "@/services/types";
+import { useCurrentVehicle, useRole, ROLE_DISCLOSURE, ROLE_LABELS } from "@/hooks";
+import type { HealthOverview, VehicleArchive, Alert as AlertType, VehicleHealthScore, AlertItem } from "@/services/types";
 import { DEMO_ARCHIVE } from "@/services/demoData";
 import { CriticalAlertOverlay, DemoBadge } from "@/components";
 import type { CriticalAlert } from "@/components";
@@ -74,8 +75,14 @@ function fmtTime(s?: string): string {
 
 export default function Dashboard() {
   const { vehicle } = useCurrentVehicle();
+  // 全局客户角色 → 差异化披露策略（切换角色后本页字段集随之变化）
+  const { role } = useRole();
+  const d = ROLE_DISCLOSURE[role];
   const [archive, setArchive] = useState<VehicleArchive | null>(null);
   const [overview, setOverview] = useState<HealthOverview | null>(null);
+  // 首页「车辆健康指数」必须来自「本车」(Guardian 车辆表主键) 的真实健康评分(VHS)，
+  // 与右侧雷达/趋势同源；绝不走 /api/health/overview 回落到 carModel 缺省车(CS021)。
+  const [healthScore, setHealthScore] = useState<VehicleHealthScore | null>(null);
   const [loading, setLoading] = useState(true);
   const [usingDemo, setUsingDemo] = useState(false);
 
@@ -99,6 +106,18 @@ export default function Dashboard() {
         const h = await healthService.overview().catch(() => null);
         if (!alive) return;
         setOverview(h);
+        // 首页健康分：取「本车」(Guardian 车辆健康评分 VHS) 的真实分。
+        // 这是 P0 修复的关键——绝不回落到 carModel 的缺省仿真车(CS021)，
+        // 否则会显示另一辆车(health_score=25/降级红/未来时间戳)误导用户以为本车车况极差。
+        if (vehicle) {
+          try {
+            const hs = await vehicleService.getHealthScore(vehicle.id);
+            if (!alive) return;
+            if (hs && typeof hs.score === "number") setHealthScore(hs);
+          } catch {
+            // 取不到就保持 null，由卡片如实渲染「暂无数据」
+          }
+        }
         // 加载本车的完整档案用于可视化
         if (vehicle) {
           try {
@@ -134,7 +153,7 @@ export default function Dashboard() {
 
   // 合并出 critical 告警列表（用于霸屏闪烁）
   const criticalAlerts: CriticalAlert[] = useMemo(() => {
-    const alerts: Alert[] = archive?.alerts ?? [];
+    const alerts: AlertType[] = archive?.alerts ?? [];
     const activeCritical = alerts.filter(
       (a) => a.level === "critical" && a.status === "active",
     );
@@ -149,11 +168,11 @@ export default function Dashboard() {
     }));
   }, [archive]);
 
-  // 健康分只认 carModel 真值（overview.health_score）。**绝不**回落到 demo 档案的
-  // health_score（DEMO_ARCHIVE=92）—— 那正是历史版本"假 92 分"的来路：carModel 不可达
-  // 时 overview.health_score 为 null，若再 `?? archive?.health_score` 就会把演示 92 透出来。
-  // 这里置空，由卡片如实渲染"暂无数据"。
-  const score = overview?.health_score ?? null;
+  // 健康分只认「本车」真实值（healthScore.score，来自 Guardian 车辆健康评分 VHS）。
+  // **绝不**回落到 demo 档案的 health_score（DEMO_ARCHIVE=92）或 carModel 缺省车
+  // overview.health_score——前者是"假 92 分"，后者是另一辆车(CS021)的错配分。
+  // 取不到就置空，由卡片如实渲染"暂无数据"。
+  const score = healthScore?.score ?? null;
   const scoreAvailable = score !== null && score !== undefined;
   const scoreColor = useMemo(() => {
     if (score === null || score === undefined) return "#8c8c8c";
@@ -224,7 +243,10 @@ export default function Dashboard() {
 
   if (loading) return <Skeleton active paragraph={{ rows: 12 }} />;
 
-  const recentAlerts = overview?.recent_alerts ?? [];
+  // 「最近告警」只取本车真实告警(archive.alerts)。
+  // 不再把 carModel overview 的 recent_alerts 当回退——那是缺省仿真车(CS021)的告警，
+  // 与「本车」无关，显示出来会误导。本车无告警时如实显示「暂无提醒」。
+  const recentAlerts: AlertItem[] = [];
   const alertsForList = archive?.alerts ?? [];
 
   // AI 守护状态的唯一呈现来源。
@@ -295,6 +317,15 @@ export default function Dashboard() {
 
   return (
     <div className="cs-dashboard">
+      {/* 客户角色视角横幅：切换角色后文案与下方字段集同步变化 */}
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message={`当前视角：${ROLE_LABELS[role]}`}
+        description={d.perspective}
+      />
+
       {/* 演示模式固定角标（右上角）——仅当 archive 真的 fallback 到 DEMO_ARCHIVE 时显示。
           定级为 L2（条件式）：后端存在，仅当未连通才回落演示数据，角标随连通状态自动显隐。 */}
       <DemoBadge level="L2" visible={usingDemo} />
@@ -336,18 +367,19 @@ export default function Dashboard() {
               <>
                 <Progress percent={score ?? 0} showInfo={false} strokeColor={scoreColor} size="small" style={{ marginTop: 8 }} />
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  {[overview?.data_source, overview?.as_of ? `观测 ${fmtTime(overview.as_of)}` : null]
+                  {[healthScore?.grade_label, "Guardian 车辆健康评分(VHS)"]
                     .filter(Boolean)
-                    .join(" · ") || "数据来源：carModel"}
+                    .join(" · ")}
                 </Text>
               </>
             ) : (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                {overview?.data_status?.detail ?? "暂无真实车况数据（carModel 不可达或未指定车辆）"}
+                暂无真实车况数据（Guardian 健康评分不可用）
               </Text>
             )}
           </Card>
         </Col>
+        {d.showInternalKpi && (
         <Col xs={12} md={6}>
           <Card className="cs-card cs-stat-card">
             <Statistic
@@ -363,6 +395,7 @@ export default function Dashboard() {
             />
           </Card>
         </Col>
+        )}
         <Col xs={12} md={6}>
           <Card className="cs-card cs-stat-card">
             <Statistic
@@ -406,7 +439,7 @@ export default function Dashboard() {
                     <stop offset="100%" stopColor={scoreColor} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eef0f4" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                 <XAxis dataKey="time" tick={{ fontSize: 11 }} stroke="#9ca3af" />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="#9ca3af" />
                 <RTooltip />
@@ -424,11 +457,12 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </Card>
         </Col>
+        {d.showTechnical && (
         <Col xs={24} lg={9}>
           <Card className="cs-card" title={<Space><DashboardOutlined /> 子系统健康</Space>}>
             <ResponsiveContainer width="100%" height={260}>
               <RadarChart data={radarData} outerRadius="75%">
-                <PolarGrid stroke="#eef0f4" />
+                <PolarGrid stroke="rgba(255,255,255,0.08)" />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12, fill: "#6b7280" }} />
                 <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
                 <RTooltip />
@@ -437,6 +471,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </Card>
         </Col>
+        )}
       </Row>
 
       {/* 第二行图表：告警分布 + 驾驶评分趋势 */}
@@ -470,11 +505,12 @@ export default function Dashboard() {
             )}
           </Card>
         </Col>
+        {d.showInternalKpi && (
         <Col xs={24} lg={16}>
           <Card className="cs-card" title={<Space><SafetyCertificateOutlined /> 驾驶评分趋势（近14天）</Space>}>
             <ResponsiveContainer width="100%" height={240}>
               <LineChart data={drivingScore} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eef0f4" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#9ca3af" />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="#9ca3af" />
                 <RTooltip />
@@ -484,15 +520,17 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </Card>
         </Col>
+        )}
       </Row>
 
       {/* 第三行：急驾驶事件柱状图 + 最近告警列表 */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        {d.showInternalKpi && (
         <Col xs={24} lg={12}>
           <Card className="cs-card" title={<Space><FireOutlined /> 急驾驶事件（近10天）</Space>}>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={drivingHarsh} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#eef0f4" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#9ca3af" />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#9ca3af" />
                 <RTooltip />
@@ -504,6 +542,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </Card>
         </Col>
+        )}
         <Col xs={24} lg={12}>
           <Card
             className="cs-card"

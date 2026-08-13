@@ -3,6 +3,30 @@
  * Vehicle digital life data for holographic visualization
  */
 
+import { createElement, type ReactNode } from "react";
+import {
+  PoweroffOutlined,
+  RobotOutlined,
+  CarOutlined,
+  CompassOutlined,
+  CrownOutlined,
+  CustomerServiceOutlined,
+  DashboardOutlined,
+  DollarOutlined,
+  EnvironmentOutlined,
+  FallOutlined,
+  FlagOutlined,
+  HeartOutlined,
+  SafetyOutlined,
+  SettingOutlined,
+  StarOutlined,
+  StopOutlined,
+  ThunderboltOutlined,
+  ToolOutlined,
+  TrophyOutlined,
+  WarningOutlined,
+} from "@ant-design/icons";
+
 // ===== Types =====
 export interface VehicleTwin {
   id: string;
@@ -89,7 +113,7 @@ export interface AgentInfo {
   role: string;
   status: "idle" | "thinking" | "working";
   color: string;
-  icon: string;
+  icon: ReactNode;
   tasksCompleted: number;
   monitoring: string;
   latestDecision: string;
@@ -106,7 +130,7 @@ export interface MemoryItem {
   content: string;
   aiLearning?: string;
   confidence?: number;
-  icon: string;
+  icon: ReactNode;
 }
 
 export interface PredictionItem {
@@ -135,7 +159,7 @@ export interface TimelineEvent {
   title: string;
   description: string;
   type: "birth" | "mileage" | "maintenance" | "alert" | "milestone";
-  icon: string;
+  icon: ReactNode;
 }
 
 // ===== Mock Data =====
@@ -217,7 +241,7 @@ export const agents: AgentInfo[] = [
     role: "总调度与决策",
     status: "working",
     color: "#a855f7",
-    icon: "👑",
+    icon: createElement(CrownOutlined),
     tasksCompleted: 1523,
     monitoring: "全车系统",
     latestDecision: "调度电池Agent进行温度异常分析",
@@ -233,7 +257,7 @@ export const agents: AgentInfo[] = [
     role: "电池健康监测",
     status: "working",
     color: "#00ff9d",
-    icon: "🔋",
+    icon: createElement(PoweroffOutlined),
     tasksCompleted: 384,
     monitoring: "12电芯 · 温度 · 容量",
     latestDecision: "检测到3号电芯温度偏高0.8°C",
@@ -249,7 +273,7 @@ export const agents: AgentInfo[] = [
     role: "电机效率监控",
     status: "idle",
     color: "#3b82f6",
-    icon: "⚡",
+    icon: createElement(ThunderboltOutlined),
     tasksCompleted: 256,
     monitoring: "功率 · 扭矩 · 温度",
     latestDecision: "电机效率稳定在94%",
@@ -265,7 +289,7 @@ export const agents: AgentInfo[] = [
     role: "刹车系统监测",
     status: "thinking",
     color: "#ffb800",
-    icon: "🛑",
+    icon: createElement(StopOutlined),
     tasksCompleted: 198,
     monitoring: "刹车片 · 液位",
     latestDecision: "前刹车片磨损达55%，建议关注",
@@ -281,7 +305,7 @@ export const agents: AgentInfo[] = [
     role: "胎压与磨损",
     status: "working",
     color: "#00f0ff",
-    icon: "🛞",
+    icon: createElement(DashboardOutlined),
     tasksCompleted: 312,
     monitoring: "4轮胎压 · 胎纹",
     latestDecision: "左前轮胎纹偏低，预测45天需更换",
@@ -297,7 +321,7 @@ export const agents: AgentInfo[] = [
     role: "悬挂与底盘",
     status: "idle",
     color: "#6366f1",
-    icon: "🔩",
+    icon: createElement(SettingOutlined),
     tasksCompleted: 142,
     monitoring: "悬挂 · 转向 · 对中",
     latestDecision: "底盘状态稳定",
@@ -313,7 +337,7 @@ export const agents: AgentInfo[] = [
     role: "安全风险评估",
     status: "working",
     color: "#ff3860",
-    icon: "🛡️",
+    icon: createElement(SafetyOutlined),
     tasksCompleted: 445,
     monitoring: "碰撞 · 安全带 · 气囊",
     latestDecision: "过去30天急刹增加18%",
@@ -329,7 +353,7 @@ export const agents: AgentInfo[] = [
     role: "综合健康评估",
     status: "thinking",
     color: "#10b981",
-    icon: "💚",
+    icon: createElement(HeartOutlined),
     tasksCompleted: 367,
     monitoring: "全车健康指数",
     latestDecision: "综合健康度96%，优于同级85%",
@@ -345,7 +369,7 @@ export const agents: AgentInfo[] = [
     role: "维修任务规划",
     status: "idle",
     color: "#f59e0b",
-    icon: "🔧",
+    icon: createElement(ToolOutlined),
     tasksCompleted: 89,
     monitoring: "维修计划 · 预约",
     latestDecision: "生成前刹车片更换方案",
@@ -361,7 +385,7 @@ export const agents: AgentInfo[] = [
     role: "车辆记忆管理",
     status: "working",
     color: "#ec4899",
-    icon: "🧠",
+    icon: createElement(RobotOutlined),
     tasksCompleted: 128432,
     monitoring: "128,432条记忆",
     latestDecision: "记录今日驾驶行为数据",
@@ -377,7 +401,7 @@ export const agents: AgentInfo[] = [
     role: "车辆价值预测",
     status: "idle",
     color: "#8b5cf6",
-    icon: "💰",
+    icon: createElement(DollarOutlined),
     tasksCompleted: 56,
     monitoring: "残值 · 保险",
     latestDecision: "当前估值28.5万，年衰减率8.2%",
@@ -396,7 +420,7 @@ export const memories: MemoryItem[] = [
     content: "今日通勤驾驶32km，平均能耗14.2kWh/100km，能效评分A+",
     aiLearning: "用户已连续7天保持低能耗驾驶模式",
     confidence: 95,
-    icon: "🚗",
+    icon: createElement(CarOutlined),
   },
   {
     id: "m2",
@@ -405,7 +429,7 @@ export const memories: MemoryItem[] = [
     content: "检测到3号电芯温度偏高0.8°C，已自动启动散热策略",
     aiLearning: "可能与上周快充频率增加有关",
     confidence: 87,
-    icon: "⚠️",
+    icon: createElement(WarningOutlined),
   },
   {
     id: "m3",
@@ -414,7 +438,7 @@ export const memories: MemoryItem[] = [
     content: "用户在下坡路段频繁急刹，单次行程急刹6次",
     aiLearning: "建议启用动能回收强档模式",
     confidence: 92,
-    icon: "📉",
+    icon: createElement(FallOutlined),
   },
   {
     id: "m4",
@@ -423,7 +447,7 @@ export const memories: MemoryItem[] = [
     content: "完成第4次常规保养：空调滤芯更换、轮胎换位",
     aiLearning: "下次保养建议在32,000km时进行",
     confidence: 96,
-    icon: "🔧",
+    icon: createElement(ToolOutlined),
   },
   {
     id: "m5",
@@ -432,7 +456,7 @@ export const memories: MemoryItem[] = [
     content: "夜间行驶时播放轻音乐，驾驶风格明显平稳",
     aiLearning: "音乐有助于改善驾驶习惯",
     confidence: 78,
-    icon: "🎵",
+    icon: createElement(CustomerServiceOutlined),
   },
   {
     id: "m6",
@@ -441,7 +465,7 @@ export const memories: MemoryItem[] = [
     content: "累计行驶里程突破25,000km",
     aiLearning: "车辆进入稳定期，各项指标表现优异",
     confidence: 100,
-    icon: "🏆",
+    icon: createElement(TrophyOutlined),
   },
   {
     id: "m7",
@@ -450,7 +474,7 @@ export const memories: MemoryItem[] = [
     content: "长途出行500km，全程自动驾驶辅助开启",
     aiLearning: "高速场景AP使用率达92%",
     confidence: 94,
-    icon: "🛣️",
+    icon: createElement(CompassOutlined),
   },
   {
     id: "m8",
@@ -459,7 +483,7 @@ export const memories: MemoryItem[] = [
     content: "左前轮胎压低于标准值0.2bar，建议补气",
     aiLearning: "近一个月胎压波动在正常范围内",
     confidence: 88,
-    icon: "🛞",
+    icon: createElement(DashboardOutlined),
   },
 ];
 
@@ -548,7 +572,7 @@ export const timelineEvents: TimelineEvent[] = [
     title: "车辆诞生",
     description: "CarSoul Guardian 系统初始化，开始记录车辆数字生命",
     type: "birth",
-    icon: "🌟",
+    icon: createElement(StarOutlined),
   },
   {
     id: "t2",
@@ -556,7 +580,7 @@ export const timelineEvents: TimelineEvent[] = [
     title: "首次驾驶",
     description: "行驶里程0→12km，系统完成首次自检与标定",
     type: "mileage",
-    icon: "🚗",
+    icon: createElement(CarOutlined),
   },
   {
     id: "t3",
@@ -564,7 +588,7 @@ export const timelineEvents: TimelineEvent[] = [
     title: "5,000km 里程碑",
     description: "首次保养完成，各项指标优异",
     type: "mileage",
-    icon: "🏁",
+    icon: createElement(FlagOutlined),
   },
   {
     id: "t4",
@@ -572,7 +596,7 @@ export const timelineEvents: TimelineEvent[] = [
     title: "10,000km",
     description: "第二次保养，轮胎换位，刹车系统检查",
     type: "mileage",
-    icon: "🏁",
+    icon: createElement(FlagOutlined),
   },
   {
     id: "t5",
@@ -580,7 +604,7 @@ export const timelineEvents: TimelineEvent[] = [
     title: "首次长途旅行",
     description: "单次行程820km，系统全程守护",
     type: "milestone",
-    icon: "🛣️",
+    icon: createElement(CompassOutlined),
   },
   {
     id: "t6",
@@ -588,7 +612,7 @@ export const timelineEvents: TimelineEvent[] = [
     title: "20,000km",
     description: "第三次保养，系统升级至V2.0",
     type: "mileage",
-    icon: "🏁",
+    icon: createElement(FlagOutlined),
   },
   {
     id: "t7",
@@ -596,7 +620,7 @@ export const timelineEvents: TimelineEvent[] = [
     title: "现在",
     description: "28,456km · 健康度96% · 438天陪伴",
     type: "milestone",
-    icon: "📍",
+    icon: createElement(EnvironmentOutlined),
   },
   {
     id: "t8",
@@ -604,7 +628,7 @@ export const timelineEvents: TimelineEvent[] = [
     title: "预计保养",
     description: "前刹车片更换 · 32,000km保养",
     type: "maintenance",
-    icon: "🔧",
+    icon: createElement(ToolOutlined),
   },
 ];
 

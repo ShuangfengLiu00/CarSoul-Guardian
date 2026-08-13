@@ -31,6 +31,7 @@ import {
   Tooltip,
   message,
   Collapse,
+  Alert,
 } from "antd";
 import {
   RobotOutlined,
@@ -48,6 +49,7 @@ import {
   SyncOutlined,
 } from "@ant-design/icons";
 import { governanceService } from "@/services/governanceService";
+import { useRole, ROLE_DISCLOSURE, ROLE_LABELS } from "@/hooks";
 import type {
   AgentMetadata,
   SkillMetadata,
@@ -1037,6 +1039,9 @@ function ObservationTab({ loading }: { loading: boolean }) {
 export default function Governance() {
   const [activeTab, setActiveTab] = useState("overview");
   const [overview, setOverview] = useState<any>(null);
+  // 全局客户角色 → 差异化披露策略（切换角色后本页字段集随之变化）
+  const { role } = useRole();
+  const d = ROLE_DISCLOSURE[role];
   const [agents, setAgents] = useState<AgentMetadata[]>([]);
   const [skills, setSkills] = useState<SkillMetadata[]>([]);
   const [mcpInterfaces, setMcpInterfaces] = useState<MCPInterface[]>([]);
@@ -1128,12 +1133,25 @@ export default function Governance() {
     {
       key: "observation",
       label: "AgentLoop",
-      children: <ObservationTab loading={loading} />,
+      children: d.showInternalKpi ? (
+        <ObservationTab loading={loading} />
+      ) : (
+        <Empty description="内部治理指标（全链路追踪 / 评估 / 优化 / 自进化）仅对车队、保险与 OEM 角色开放" />
+      ),
     },
   ];
 
   return (
     <div className="cs-dashboard">
+      {/* 客户角色视角横幅：切换角色后文案与下方字段集同步变化 */}
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message={`当前视角：${ROLE_LABELS[role]}`}
+        description={d.perspective}
+      />
+
       <div className="cs-dashboard__header">
         <div>
           <Title level={3} style={{ margin: 0 }}>

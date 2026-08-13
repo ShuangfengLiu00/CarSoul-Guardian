@@ -110,6 +110,18 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     MODEL_NAME: str = "gpt-4o-mini"
     OPENAI_API_BASE: str = ""
+    # Embedding model id for the RAG knowledge base. Any OpenAI-compatible
+    # id works (OpenAI text-embedding-3-small, 智谱 embedding-3,
+    # 通义 text-embedding-v3, 火山 bge-...). Empty → falls back to the
+    # offline non-semantic hash embedding when OPENAI_API_KEY is also empty.
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    # 独立 embedding 凭证（可选，默认回落到 OPENAI_API_KEY / OPENAI_API_BASE）。
+    # 设计用途：聊天 LLM 用一家（如智谱 glm-4，聊天有额度），embedding 用另一家
+    # （如通义 text-embedding-v3，embedding 独立计费）——两者计费通道不同，
+    # 分开配可避免「聊天有额度但 embedding 没额度」导致整库 brick。
+    # 仅当本字段非空时才覆盖聊天凭证；留空则复用 OPENAI_*。
+    EMBEDDING_API_KEY: str = ""
+    EMBEDDING_API_BASE: str = ""
 
     # LLM 是否为硬依赖。
     # 默认 False：本系统的 Agent / 知识库是**刻意**设计成可优雅降级的

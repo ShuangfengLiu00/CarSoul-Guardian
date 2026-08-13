@@ -28,21 +28,36 @@ const SEVERITY_ICON: Record<string, typeof CheckCircleOutlined> = {
 };
 
 const SEVERITY_COLOR: Record<string, string> = {
-  info: "#10b981",
-  warning: "#f59e0b",
-  urgent: "#ef4444",
+  info: "var(--soul-500)",
+  warning: "var(--warn-500)",
+  urgent: "var(--danger-500)",
 };
+
+/** risk_color → CS-UI-DS 语义 token（红/橙/绿） */
+function riskTone(color: string | undefined): {
+  border: string;
+  soft: string;
+  strong: string;
+} {
+  if (color === "red") {
+    return { border: "var(--danger-400)", soft: "var(--danger-soft)", strong: "var(--danger-400)" };
+  }
+  if (color === "orange") {
+    return { border: "var(--warn-400)", soft: "var(--warn-soft)", strong: "var(--warn-400)" };
+  }
+  return { border: "var(--soul-400)", soft: "var(--soul-soft)", strong: "var(--soul-400)" };
+}
 
 /**
  * Renders the structured trip health report — the final output of the
- * long-trip Agent closed loop. Designed to make the Agent's analysis
- * visible to competition judges at a glance:
+ * long-trip Agent closed loop. Token-driven (CS-UI-DS v1.0, dark theme):
  *
  *   risk level → problems found → root cause → impact → recommendations
  *   → charging plan → knowledge sources → verdict
  */
 export default function TripReportCard({ report }: Props) {
   const problems = report.problems ?? [];
+  const tone = riskTone(report.risk_color);
 
   return (
     <div className="cs-trip-report" style={{ marginTop: 12 }}>
@@ -54,24 +69,18 @@ export default function TripReportCard({ report }: Props) {
           justifyContent: "space-between",
           alignItems: "center",
           padding: "14px 16px",
-          background: "linear-gradient(135deg, #0f172a, #1e293b)",
+          background: "var(--ink-850)",
           borderRadius: "12px 12px 0 0",
-          borderBottom: `3px solid ${
-            report.risk_color === "red"
-              ? "#ef4444"
-              : report.risk_color === "orange"
-              ? "#f59e0b"
-              : "#10b981"
-          }`,
+          borderBottom: `3px solid ${tone.border}`,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <CarOutlined style={{ fontSize: 20, color: "#3b82f6" }} />
+          <CarOutlined style={{ fontSize: 20, color: "var(--info-400)" }} />
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#f1f5f9" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-100)" }}>
               {report.title}
             </div>
-            <div style={{ fontSize: 11, color: "#94a3b8" }}>
+            <div style={{ fontSize: 11, color: "var(--text-300)" }}>
               CarSoul Guardian · Agent 闭环输出
             </div>
           </div>
@@ -88,10 +97,10 @@ export default function TripReportCard({ report }: Props) {
       <div
         className="cs-trip-body"
         style={{
-          background: "#f8fafc",
+          background: "var(--ink-800)",
           borderRadius: "0 0 12px 12px",
           padding: 16,
-          border: "1px solid #e2e8f0",
+          border: "1px solid var(--line)",
           borderTop: "none",
         }}
       >
@@ -109,14 +118,14 @@ export default function TripReportCard({ report }: Props) {
               display: "flex",
               alignItems: "center",
               gap: 6,
-              background: "#eff6ff",
+              background: "var(--info-soft)",
               padding: "6px 12px",
               borderRadius: 8,
               fontSize: 13,
             }}
           >
-            <EnvironmentOutlined style={{ color: "#3b82f6" }} />
-            <span style={{ color: "#1e40af", fontWeight: 600 }}>
+            <EnvironmentOutlined style={{ color: "var(--info-400)" }} />
+            <span style={{ color: "var(--info-400)", fontWeight: 600 }}>
               {report.distance_km} km
             </span>
           </div>
@@ -125,14 +134,14 @@ export default function TripReportCard({ report }: Props) {
               display: "flex",
               alignItems: "center",
               gap: 6,
-              background: "#f0fdf4",
+              background: "var(--soul-soft)",
               padding: "6px 12px",
               borderRadius: 8,
               fontSize: 13,
             }}
           >
-            <ClockCircleOutlined style={{ color: "#10b981" }} />
-            <span style={{ color: "#166534", fontWeight: 600 }}>
+            <ClockCircleOutlined style={{ color: "var(--soul-400)" }} />
+            <span style={{ color: "var(--soul-400)", fontWeight: 600 }}>
               预计 {report.estimated_hours} 小时
             </span>
           </div>
@@ -141,14 +150,14 @@ export default function TripReportCard({ report }: Props) {
               display: "flex",
               alignItems: "center",
               gap: 6,
-              background: "#fffbeb",
+              background: "var(--warn-soft)",
               padding: "6px 12px",
               borderRadius: 8,
               fontSize: 13,
             }}
           >
-            <ThunderboltOutlined style={{ color: "#f59e0b" }} />
-            <span style={{ color: "#92400e", fontWeight: 600 }}>
+            <ThunderboltOutlined style={{ color: "var(--warn-400)" }} />
+            <span style={{ color: "var(--warn-400)", fontWeight: 600 }}>
               {report.charging_plan.stops} 个充电站
             </span>
           </div>
@@ -157,14 +166,14 @@ export default function TripReportCard({ report }: Props) {
               display: "flex",
               alignItems: "center",
               gap: 6,
-              background: "#fef2f2",
+              background: "var(--danger-soft)",
               padding: "6px 12px",
               borderRadius: 8,
               fontSize: 13,
             }}
           >
-            <WarningOutlined style={{ color: "#ef4444" }} />
-            <span style={{ color: "#991b1b", fontWeight: 600 }}>
+            <WarningOutlined style={{ color: "var(--danger-400)" }} />
+            <span style={{ color: "var(--danger-400)", fontWeight: 600 }}>
               概率 {report.risk_probability}%
             </span>
           </div>
@@ -177,7 +186,7 @@ export default function TripReportCard({ report }: Props) {
               style={{
                 fontSize: 12,
                 fontWeight: 700,
-                color: "#475569",
+                color: "var(--text-300)",
                 marginBottom: 8,
                 textTransform: "uppercase",
                 letterSpacing: 0.5,
@@ -187,15 +196,15 @@ export default function TripReportCard({ report }: Props) {
             </div>
             <div
               style={{
-                background: "#fff",
+                background: "var(--ink-800)",
                 borderRadius: 8,
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--line)",
                 overflow: "hidden",
               }}
             >
               {problems.map((p, i) => {
                 const Icon = SEVERITY_ICON[p.severity] || WarningOutlined;
-                const color = SEVERITY_COLOR[p.severity] || "#f59e0b";
+                const color = SEVERITY_COLOR[p.severity] || "var(--warn-500)";
                 return (
                   <div
                     key={i}
@@ -206,25 +215,25 @@ export default function TripReportCard({ report }: Props) {
                       padding: "8px 12px",
                       borderBottom:
                         i < problems.length - 1
-                          ? "1px solid #f1f5f9"
+                          ? "1px solid var(--line)"
                           : "none",
                       fontSize: 13,
                     }}
                   >
                     <Icon style={{ color, fontSize: 16, flexShrink: 0 }} />
-                    <span style={{ fontWeight: 600, color: "#334155", minWidth: 80 }}>
+                    <span style={{ fontWeight: 600, color: "var(--text-200)", minWidth: 80 }}>
                       {p.item}
                     </span>
-                    <span style={{ color: "#64748b" }}>
+                    <span style={{ color: "var(--text-300)" }}>
                       当前 <strong style={{ color }}>{p.value}</strong>
                     </span>
-                    <span style={{ color: "#94a3b8", fontSize: 12 }}>
+                    <span style={{ color: "var(--text-400)", fontSize: 12 }}>
                       阈值 {p.threshold}
                     </span>
                     <Tooltip title={p.detail}>
                       <span
                         style={{
-                          color: "#94a3b8",
+                          color: "var(--text-400)",
                           fontSize: 11,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -248,7 +257,7 @@ export default function TripReportCard({ report }: Props) {
             style={{
               fontSize: 12,
               fontWeight: 700,
-              color: "#475569",
+              color: "var(--text-300)",
               marginBottom: 6,
               textTransform: "uppercase",
               letterSpacing: 0.5,
@@ -258,18 +267,18 @@ export default function TripReportCard({ report }: Props) {
           </div>
           <div
             style={{
-              background: "#fff7ed",
+              background: "var(--warn-soft)",
               borderRadius: 8,
               padding: "10px 14px",
               fontSize: 13,
-              color: "#9a3412",
+              color: "var(--warn-400)",
               lineHeight: 1.6,
-              border: "1px solid #fed7aa",
+              border: "1px solid var(--warn-400)",
             }}
           >
             {report.root_cause}
             {report.knowledge_match && (
-              <div style={{ marginTop: 6, fontSize: 12, color: "#c2410c" }}>
+              <div style={{ marginTop: 6, fontSize: 12, color: "var(--warn-400)" }}>
                 <BookOutlined style={{ marginRight: 4 }} />
                 知识库匹配：{report.knowledge_match}
               </div>
@@ -284,7 +293,7 @@ export default function TripReportCard({ report }: Props) {
               style={{
                 fontSize: 12,
                 fontWeight: 700,
-                color: "#475569",
+                color: "var(--text-300)",
                 marginBottom: 6,
                 textTransform: "uppercase",
                 letterSpacing: 0.5,
@@ -294,13 +303,13 @@ export default function TripReportCard({ report }: Props) {
             </div>
             <div
               style={{
-                background: "#fef2f2",
+                background: "var(--danger-soft)",
                 borderRadius: 8,
                 padding: "10px 14px",
                 fontSize: 13,
-                color: "#991b1b",
+                color: "var(--danger-400)",
                 lineHeight: 1.6,
-                border: "1px solid #fecaca",
+                border: "1px solid var(--danger-400)",
               }}
             >
               {report.impact}
@@ -315,7 +324,7 @@ export default function TripReportCard({ report }: Props) {
               style={{
                 fontSize: 12,
                 fontWeight: 700,
-                color: "#475569",
+                color: "var(--text-300)",
                 marginBottom: 6,
                 textTransform: "uppercase",
                 letterSpacing: 0.5,
@@ -332,11 +341,11 @@ export default function TripReportCard({ report }: Props) {
                     alignItems: "flex-start",
                     gap: 8,
                     fontSize: 13,
-                    color: "#334155",
+                    color: "var(--text-200)",
                   }}
                 >
                   <CheckCircleOutlined
-                    style={{ color: "#10b981", marginTop: 2, flexShrink: 0 }}
+                    style={{ color: "var(--soul-500)", marginTop: 2, flexShrink: 0 }}
                   />
                   <span>{rec}</span>
                 </div>
@@ -351,7 +360,7 @@ export default function TripReportCard({ report }: Props) {
             style={{
               fontSize: 12,
               fontWeight: 700,
-              color: "#475569",
+              color: "var(--text-300)",
               marginBottom: 6,
               textTransform: "uppercase",
               letterSpacing: 0.5,
@@ -373,24 +382,24 @@ export default function TripReportCard({ report }: Props) {
                   display: "flex",
                   alignItems: "center",
                   gap: 4,
-                  background: "#ecfdf5",
+                  background: "var(--soul-soft)",
                   padding: "4px 10px",
                   borderRadius: 6,
                   fontSize: 12,
-                  color: "#065f46",
-                  border: "1px solid #a7f3d0",
+                  color: "var(--soul-400)",
+                  border: "1px solid var(--soul-400)",
                 }}
               >
                 <ThunderboltOutlined style={{ fontSize: 12 }} />
                 充电站 {i + 1}
-                <span style={{ color: "#94a3b8" }}>
+                <span style={{ color: "var(--text-400)" }}>
                   (~{(i + 1) * report.charging_plan.interval_km}km)
                 </span>
               </div>
             ))}
           </div>
           <div
-            style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}
+            style={{ marginTop: 6, fontSize: 12, color: "var(--text-400)" }}
           >
             {report.charging_plan.strategy}
           </div>
@@ -406,7 +415,7 @@ export default function TripReportCard({ report }: Props) {
                 alignItems: "center",
                 gap: 6,
                 fontSize: 11,
-                color: "#64748b",
+                color: "var(--text-400)",
               }}
             >
               <BookOutlined />
@@ -423,47 +432,21 @@ export default function TripReportCard({ report }: Props) {
         {/* Verdict */}
         <div
           style={{
-            background:
-              report.risk_color === "red"
-                ? "linear-gradient(135deg, #fef2f2, #fecaca)"
-                : report.risk_color === "orange"
-                ? "linear-gradient(135deg, #fffbeb, #fed7aa)"
-                : "linear-gradient(135deg, #f0fdf4, #bbf7d0)",
+            background: tone.soft,
             borderRadius: 8,
             padding: "12px 16px",
             display: "flex",
             alignItems: "center",
             gap: 10,
-            border: `1px solid ${
-              report.risk_color === "red"
-                ? "#fca5a5"
-                : report.risk_color === "orange"
-                ? "#fdba74"
-                : "#86efac"
-            }`,
+            border: `1px solid ${tone.border}`,
           }}
         >
-          <BulbOutlined
-            style={{
-              fontSize: 20,
-              color:
-                report.risk_color === "red"
-                  ? "#dc2626"
-                  : report.risk_color === "orange"
-                  ? "#d97706"
-                  : "#16a34a",
-            }}
-          />
+          <BulbOutlined style={{ fontSize: 20, color: tone.strong }} />
           <span
             style={{
               fontSize: 14,
               fontWeight: 700,
-              color:
-                report.risk_color === "red"
-                  ? "#991b1b"
-                  : report.risk_color === "orange"
-                  ? "#92400e"
-                  : "#166534",
+              color: tone.strong,
             }}
           >
             {report.verdict}
@@ -478,7 +461,7 @@ export default function TripReportCard({ report }: Props) {
             alignItems: "center",
             gap: 6,
             fontSize: 11,
-            color: "#94a3b8",
+            color: "var(--text-400)",
           }}
         >
           <ReloadOutlined spin style={{ fontSize: 11 }} />

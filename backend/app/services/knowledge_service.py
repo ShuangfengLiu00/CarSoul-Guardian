@@ -27,8 +27,9 @@ def _load_kb():
         _kb = get_knowledge_base(
             persist_path=settings.VECTOR_DB_PATH,
             collection_name=settings.CHROMA_COLLECTION,
-            api_key=settings.OPENAI_API_KEY,
-            api_base=settings.OPENAI_API_BASE,
+            api_key=settings.EMBEDDING_API_KEY or settings.OPENAI_API_KEY,
+            api_base=settings.EMBEDDING_API_BASE or settings.OPENAI_API_BASE,
+            model=settings.EMBEDDING_MODEL,
         )
         logger.info("RAG knowledge base loaded (backend=%s).", _kb.backend)
     except Exception as exc:  # noqa: BLE001
@@ -98,6 +99,8 @@ def stats() -> dict:
             "chunk_count": 0,
             "backend": "unavailable",
             "embedder": "none",
+            "embedder_model": "",
+            "semantic": False,
             "docs_dir": "",
             "ready": False,
         }

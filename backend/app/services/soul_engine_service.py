@@ -196,7 +196,24 @@ def get_or_create_identity(db: Session, vehicle_id: int) -> VehicleIdentity:
 # ===========================================================================
 
 def _compute_health_score(db: Session, vehicle_id: int) -> float:
-    """Compute health sub-score (0-100) from latest health metrics."""
+    """车辆健康分统一口径：复用 Guardian 权威 VHS（health_score_service）。
+
+    收敛 P1（健康分三定义矛盾）：此前数字生命的 health 子项用另一套
+    ``VehicleHealthMetrics`` 均值公式，与首页/档案的 VHS(84.1) 各算各的，
+    导致「数字生命页 93 / 首页 84」的口径漂移。现在统一取 VHS，
+    digital-twin 的 health 维度、life_state.health_score、profile.health_score
+    全部等于 VHS，与车辆健康分单一口径对齐。
+
+    兜底：VHS 极端情况下算不出（车辆不存在等）时，回落到原指标均值逻辑，
+    避免引入新失败点。
+    """
+    from app.services.health_score_service import compute_health_score
+
+    vhs = compute_health_score(db, vehicle_id)
+    if vhs is not None:
+        return float(vhs.score)
+
+    # ---- 兜底：原 VehicleHealthMetrics 均值逻辑（仅 VHS 不可得时） ----
     latest = db.scalars(
         select(VehicleHealthMetrics)
         .where(VehicleHealthMetrics.vehicle_id == vehicle_id)
@@ -204,7 +221,6 @@ def _compute_health_score(db: Session, vehicle_id: int) -> float:
         .limit(10)
     ).all()
     if not latest:
-        # Fallback to digital state
         from app.models.digital_state import VehicleDigitalState
         state = db.scalar(
             select(VehicleDigitalState).where(

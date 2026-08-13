@@ -19,7 +19,7 @@ export function useAgent() {
   const username = useUserStore((s) => s.username) || "guest";
 
   const send = useCallback(
-    async (text: string, onReply?: (answer: string) => void) => {
+    async (text: string, onReply?: (answer: string) => void, vehicleId?: number) => {
       const trimmed = text.trim();
       if (!trimmed) return;
       pushMessage({ role: "user", content: trimmed });
@@ -29,6 +29,7 @@ export function useAgent() {
           user: username,
           message: trimmed,
           session_id: sessionId || undefined,
+          vehicle_id: vehicleId,
         });
         if (resp.session_id) setSessionId(resp.session_id);
         // 诚实降级：未证明"链路可用且本轮真的调了大模型"即视为降级。

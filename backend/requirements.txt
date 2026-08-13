@@ -23,9 +23,10 @@ passlib[bcrypt]>=1.7.4
 python-jose[cryptography]>=3.3.0
 email-validator>=2.0
 
-# AI Agent (optional deps for enhanced RAG; system degrades gracefully without them)
-# openai>=1.30        # LLM + embedding API (TASK008/009)
-# chromadb>=0.5       # persistent vector store (TASK009; in-memory fallback built-in)
+# AI Agent — REQUIRED for true semantic RAG + real LLM (Guardian degrades to
+# hash embeddings + rule expert team WITHOUT these; see docs/审计/全站数据正确性核查).
+openai>=1.30          # LLM + embedding API (TASK008/009) — 真语义检索必需
+chromadb>=0.5         # persistent vector store (TASK009; in-memory fallback built-in)
 
 # Utils
 loguru>=0.7

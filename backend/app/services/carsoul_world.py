@@ -10,6 +10,8 @@ Every call degrades gracefully: network / HTTP errors return a structured
 """
 from __future__ import annotations
 
+import json
+
 import httpx
 
 from app.core.config import settings
@@ -39,6 +41,40 @@ async def _request(method: str, path: str, *, json=None, params=None, timeout: f
         return {"error": f"world_model_{exc.response.status_code}", "detail": detail}
     except httpx.HTTPError as exc:  # 连不上 / 超时
         return {"error": "world_model_unavailable", "detail": str(exc)}
+
+
+async def proxy_pass(
+    method: str,
+    path: str,
+    *,
+    json_body=None,
+    params=None,
+    timeout: float = 60.0,
+) -> tuple[int, str, dict]:
+    """Raw pass-through for the embedded cockpit iframe (white-listed upstream paths).
+
+    Unlike ``_request`` (which collapses upstream errors into a 200 envelope),
+    this preserves the upstream **status code and raw body** so the cockpit's
+    ``api()`` helper can correctly distinguish success from 4xx/5xx (its
+    ``if (!r.ok) throw`` contract drives the "engine offline" indicator).
+
+    Returns ``(status_code, body_text, headers)``. Network-level failures map
+    to 502 so the cockpit shows a degraded state instead of a parse error.
+    """
+    headers = {}
+    svc_token = settings.CARSOUL_WORLD_API_TOKEN
+    if svc_token:
+        headers["Authorization"] = f"Bearer {svc_token}"
+    try:
+        async with httpx.AsyncClient(
+            base_url=settings.CARSOUL_WORLD_API_URL, timeout=timeout
+        ) as client:
+            resp = await client.request(
+                method, path, json=json_body, params=params, headers=headers or None
+            )
+            return resp.status_code, resp.text, dict(resp.headers)
+    except httpx.HTTPError as exc:
+        return 502, json.dumps({"error": "world_model_unavailable", "detail": str(exc)}), {}
 
 
 async def world_health():

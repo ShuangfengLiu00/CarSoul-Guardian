@@ -7,6 +7,7 @@ const exts = [".ts", ".tsx"];
 const dirs = [
   "components/three",
   "components/hologram",
+  "components/base",
   "pages/hologram",
   "services",
   "stores",

@@ -3,11 +3,16 @@ import { userService } from "@/services/userService";
 
 // 静默登录（P0 鉴权断链修复，前端侧）：应用启动时用 demo 账号调已豁免的
 // /api/user/login 拿真令牌写入 localStorage，使全站 /api 调用带牌。
-// 仅 DEV 或显式开启 VITE_SILENT_LOGIN 时生效；生产应改用真实登录页。
-
+//
+// 默认开启（包括生产构建）：本项目当前以 demo 形态对外展示，没有真实登录页，
+// 若生产构建默认关闭会导致 Vite 把整段死代码消除 → 首次访问 /api 全 401 + 静默登录
+// 失败时还会把"无车"和"鉴权失败"误当成同一件事（useCurrentVehicle 兜底把 vehicle
+// 置 null，主区域显示「暂无车辆」，而顶部冒出 Unauthorized 红条）。
+//
+// 仅当显式 VITE_SILENT_LOGIN=false 时禁用（留出未来接真登录页的开关）。
 const DEMO_USERNAME = import.meta.env.VITE_DEMO_USERNAME || "demo";
 const DEMO_PASSWORD = import.meta.env.VITE_DEMO_PASSWORD || "demo1234";
-const SILENT_LOGIN = import.meta.env.DEV || import.meta.env.VITE_SILENT_LOGIN === "true";
+const SILENT_LOGIN = import.meta.env.VITE_SILENT_LOGIN !== "false";
 
 let inflight: Promise<string | null> | null = null;
 

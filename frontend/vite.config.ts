@@ -63,12 +63,12 @@ export default defineConfig({
       // prediction engine, so the Guardian backend runs on :8001 to avoid the
       // clash. Keep these two targets in sync with the backend's --port.
       "/api": {
-        target: "http://localhost:8002",
+        target: "http://localhost:8001",
         changeOrigin: true,
       },
       // Guardian's own health (backend liveness) follows /api target.
       "/health": {
-        target: "http://localhost:8002",
+        target: "http://localhost:8001",
         changeOrigin: true,
       },
       // --- carModel (world model engine) surfaces, proxied straight to :8000 ---

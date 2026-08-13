@@ -18,6 +18,7 @@ import {
   Progress,
   Badge,
   Descriptions,
+  Alert,
   message,
 } from "antd";
 import {
@@ -31,7 +32,7 @@ import {
   RobotOutlined,
   ExperimentOutlined,
 } from "@ant-design/icons";
-import { useCurrentVehicle } from "@/hooks";
+import { useCurrentVehicle, useRole, ROLE_DISCLOSURE, ROLE_LABELS } from "@/hooks";
 import DemoBadge from "@/components/DemoBadge";
 import { riskService } from "@/services";
 import type {
@@ -97,6 +98,10 @@ export default function RiskPrediction() {
   const [submitting, setSubmitting] = useState(false);
 
   const vehicleId = vehicle?.id;
+
+  // 全局客户角色 → 差异化披露策略（切换角色后本页字段集随之变化）
+  const { role } = useRole();
+  const d = ROLE_DISCLOSURE[role];
 
   /** 拉取预测列表。 */
   const fetchPredictions = useCallback(async () => {
@@ -305,6 +310,15 @@ export default function RiskPrediction() {
         </Space>
       </Space>
 
+      {/* 客户角色视角横幅：切换角色后文案与下方字段集同步变化 */}
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message={`当前视角：${ROLE_LABELS[role]}`}
+        description={d.perspective}
+      />
+
       {/* 调度器状态卡（演示"主动守护"真实性） */}
       {scheduler && (
         <Card className="cs-card" size="small" style={{ marginBottom: 16 }}>
@@ -336,6 +350,7 @@ export default function RiskPrediction() {
             />
           </Card>
         </Col>
+        {d.showInternalKpi && (
         <Col xs={12} md={6}>
           <Card className="cs-card" loading={accLoading}>
             <Statistic
@@ -346,6 +361,8 @@ export default function RiskPrediction() {
             />
           </Card>
         </Col>
+        )}
+        {d.showInternalKpi && (
         <Col xs={12} md={6}>
           <Card className="cs-card" loading={accLoading}>
             <Statistic
@@ -355,6 +372,8 @@ export default function RiskPrediction() {
             />
           </Card>
         </Col>
+        )}
+        {d.showInternalKpi && (
         <Col xs={12} md={6}>
           <Card className="cs-card" loading={accLoading}>
             <Statistic
@@ -364,6 +383,7 @@ export default function RiskPrediction() {
             />
           </Card>
         </Col>
+        )}
       </Row>
 
       {/* 筛选 + 预测列表 */}
@@ -432,7 +452,7 @@ export default function RiskPrediction() {
                         <Tag color={sm.color}>{sm.label}</Tag>
                         <Tag>{TRIGGER_LABEL[p.triggered_by] || p.triggered_by}</Tag>
                         {p.is_normal && <Tag color="green">正常</Tag>}
-                        {p.predicted_probability != null && (
+                        {d.showProbability && p.predicted_probability != null && (
                           <Tag color={p.predicted_probability >= 60 ? "red" : "orange"}>
                             风险 {p.predicted_probability}%
                           </Tag>
@@ -461,15 +481,16 @@ export default function RiskPrediction() {
                       )}
                       <Text type="secondary" style={{ fontSize: 12 }}>
                         {new Date(p.created_at).toLocaleString("zh-CN")}
-                        {p.actual_outcome && (
+                        {d.showOutcome && p.actual_outcome && (
                           <span>
                             {" · "}反馈：{OUTCOME_LABEL[p.actual_outcome] || p.actual_outcome}
-                            {p.accuracy != null && `（${(p.accuracy * 100).toFixed(0)}%）`}
+                            {d.showInternalKpi && p.accuracy != null && `（${(p.accuracy * 100).toFixed(0)}%）`}
                           </span>
                         )}
                       </Text>
                     </div>
                     <Space direction="vertical" size={6}>
+                      {d.showTechnical && (
                       <Button
                         size="small"
                         icon={<EyeOutlined />}
@@ -477,6 +498,7 @@ export default function RiskPrediction() {
                       >
                         推理轨迹
                       </Button>
+                      )}
                       {p.status === "open" && (
                         <Button
                           size="small"
@@ -539,7 +561,9 @@ export default function RiskPrediction() {
                 {detail.predicted_probability != null && ` ${detail.predicted_probability}%`}
               </Descriptions.Item>
               <Descriptions.Item label="趋势">{detail.trend || "—"}</Descriptions.Item>
+              {d.showTechnical && (
               <Descriptions.Item label="异常数">{detail.anomalies_count}</Descriptions.Item>
+              )}
               {detail.actions_hint && detail.actions_hint.length > 0 && (
                 <Descriptions.Item label="建议动作">
                   {detail.actions_hint.join("；")}
@@ -559,7 +583,7 @@ export default function RiskPrediction() {
             <Text strong style={{ display: "block", marginBottom: 12 }}>
               <EyeOutlined /> 推理轨迹（Trace Log）
             </Text>
-            {detail.trace_log && detail.trace_log.length > 0 ? (
+            {d.showTechnical && detail.trace_log && detail.trace_log.length > 0 ? (
               <Timeline
                 items={detail.trace_log.map((t, i) => {
                   const step = String(t.step || t.agent || `步骤 ${i + 1}`);

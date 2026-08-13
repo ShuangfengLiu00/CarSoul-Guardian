@@ -17,6 +17,7 @@ import {
   Spin,
   Select,
   Divider,
+  Alert,
 } from "antd";
 import type { ProgressProps } from "antd";
 import {
@@ -42,6 +43,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { vehicleService, soulService } from "@/services";
+import { useRole, ROLE_DISCLOSURE, ROLE_LABELS } from "@/hooks";
 import type {
   Vehicle,
   SoulProfile,
@@ -653,6 +655,9 @@ function AgentHooksPanel({ profile, onQuery, loading }: AgentHooksProps) {
 
 export default function MyCarSoul() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  // 全局客户角色 → 差异化披露策略（切换角色后本页字段集随之变化）
+  const { role } = useRole();
+  const d = ROLE_DISCLOSURE[role];
   const [vehiclesLoading, setVehiclesLoading] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null);
   const [profile, setProfile] = useState<SoulProfile | null>(null);
@@ -756,6 +761,15 @@ export default function MyCarSoul() {
 
   return (
     <div>
+      {/* 客户角色视角横幅：切换角色后文案与下方字段集同步变化 */}
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message={`当前视角：${ROLE_LABELS[role]}`}
+        description={d.perspective}
+      />
+
       {/* 本页数据全部来自 soulService / vehicleService 真实接口（getSoulProfile / list），
           失败时置 null 走空态，没有任何 demo 数据分支 —— 故不挂 DemoBadge。
           若后续引入占位数据，请用 <DemoBadge level="L2" visible={...} /> 条件式挂载。 */}
@@ -839,12 +853,16 @@ export default function MyCarSoul() {
             <Col span={24}>
               <VitalsRow profile={profile} />
             </Col>
+            {d.showInternalKpi && (
             <Col xs={24} lg={12}>
               <VssBreakdown profile={profile} />
             </Col>
+            )}
+            {d.showTechnical && (
             <Col xs={24} lg={12}>
               <HealthMetricsPanel metrics={profile.health_metrics} />
             </Col>
+            )}
             <Col xs={24} lg={12}>
               <LifeEventsTimeline events={profile.life_events} />
             </Col>
