@@ -259,7 +259,7 @@ def test_orchestrator_routes_to_battery_agent(monkeypatch):
         else:
             _patch_fail(monkeypatch, agent, reason="unavailable")
 
-    res = orch.dispatch("我的电池健康度怎么样", "u1")
+    res = orch.dispatch("我的电池健康度怎么样", "u1", vehicle_id="CS001")
     assert "battery_health" in res.agents_involved
     assert res.status == "ok"
     assert "88.0%" in res.answer
