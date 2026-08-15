@@ -278,6 +278,11 @@ def run_prediction(
 
     Returns the persisted ``RiskPrediction``. When the predicted level is
     ``warning`` or ``urgent`` a ``VehicleAlert`` is created and linked.
+
+    主动巡检（``triggered_by="patrol"``）带去重：如果同一车辆已有未闭环的
+    同类风险预测（primary_type + root_cause + level 相同），或上一条巡检
+    结果也是正常，则不重复创建记录，直接返回已有预测。用户手动触发的预测
+    始终创建新记录。
     """
     if db.get(Vehicle, vehicle_id) is None:
         raise ValueError(f"Vehicle {vehicle_id} not found")
@@ -301,7 +306,68 @@ def run_prediction(
             "trace_log": state.get("trace_log", []),
         }
 
+    # Patrol dedup: don't flood the history with identical predictions.
+    if triggered_by == "patrol":
+        existing = _find_patrol_duplicate(db, vehicle_id, final_state)
+        if existing is not None:
+            logger.info(
+                "Patrol dedup: vehicle %s already has open prediction %s "
+                "with same signature, skipping.",
+                vehicle_id, existing.id,
+            )
+            return existing
+
     return _persist_prediction(db, vehicle_id, triggered_by, final_state)
+
+
+def _find_patrol_duplicate(
+    db: Session, vehicle_id: int, state: dict[str, Any]
+) -> RiskPrediction | None:
+    """Check if an existing open prediction matches the new workflow result.
+
+    For anomalies: match on primary_type + root_cause + predicted_level.
+    For normal results: match if the most recent prediction is also normal
+    and still open (no need to record "all clear" every 30 minutes).
+    """
+    is_normal = bool(state.get("is_normal", False))
+
+    if is_normal:
+        # If the latest prediction is already normal & open, skip.
+        stmt = (
+            select(RiskPrediction)
+            .where(
+                RiskPrediction.vehicle_id == vehicle_id,
+                RiskPrediction.status.in_(["open", "acknowledged"]),
+                RiskPrediction.is_normal.is_(True),
+            )
+            .order_by(RiskPrediction.created_at.desc())
+            .limit(1)
+        )
+        return db.scalar(stmt)
+
+    # Anomaly: match on signature.
+    risk = state.get("risk_assessment", {}) or {}
+    diagnosis = state.get("diagnosis", {}) or {}
+    primary = diagnosis.get("primary", {}) or {}
+    level = risk.get("level", "warning")
+    primary_type = risk.get("primary_type") or primary.get("type")
+    root_cause = primary.get("root_cause")
+
+    stmt = (
+        select(RiskPrediction)
+        .where(
+            RiskPrediction.vehicle_id == vehicle_id,
+            RiskPrediction.status.in_(["open", "acknowledged"]),
+            RiskPrediction.is_normal.is_(False),
+            RiskPrediction.predicted_level == level,
+        )
+        .order_by(RiskPrediction.created_at.desc())
+    )
+    for cand in db.scalars(stmt):
+        # Compare signature (NULL-safe: both None counts as match).
+        if cand.primary_type == primary_type and cand.root_cause == root_cause:
+            return cand
+    return None
 
 
 def _persist_prediction(
@@ -595,18 +661,25 @@ def patrol_all(db: Session) -> dict[str, Any]:
     stmt = select(Vehicle).where(Vehicle.status == "active").order_by(Vehicle.id)
     vehicles = list(db.scalars(stmt).all())
 
+    patrol_started = datetime.utcnow()
     patrolled = 0
     predictions_made = 0
     alerts_generated = 0
+    deduped = 0
     details: list[dict[str, Any]] = []
 
     for v in vehicles:
         patrolled += 1
         try:
             pred = run_prediction(db, v.id, triggered_by="patrol")
-            predictions_made += 1
-            if pred.alert_id is not None:
-                alerts_generated += 1
+            # A prediction created before this patrol started is a dedup hit.
+            is_new = pred.created_at >= patrol_started if pred.created_at else True
+            if is_new:
+                predictions_made += 1
+                if pred.alert_id is not None:
+                    alerts_generated += 1
+            else:
+                deduped += 1
             details.append({
                 "vehicle_id": v.id,
                 "vehicle": f"{v.brand} {v.model}",
@@ -614,6 +687,7 @@ def patrol_all(db: Session) -> dict[str, Any]:
                 "level": pred.predicted_level,
                 "is_normal": pred.is_normal,
                 "alert_id": pred.alert_id,
+                "deduped": not is_new,
                 "status": "ok",
             })
         except Exception as exc:  # noqa: BLE001
@@ -629,5 +703,6 @@ def patrol_all(db: Session) -> dict[str, Any]:
         "patrolled": patrolled,
         "predictions_made": predictions_made,
         "alerts_generated": alerts_generated,
+        "deduped": deduped,
         "details": details,
     }

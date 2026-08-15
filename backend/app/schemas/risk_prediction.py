@@ -99,4 +99,5 @@ class PatrolSummary(BaseModel):
     patrolled: int = 0
     predictions_made: int = 0
     alerts_generated: int = 0
+    deduped: int = 0
     details: list[dict[str, Any]] = Field(default_factory=list)
